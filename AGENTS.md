@@ -112,20 +112,21 @@ The exact-build integration replaces `/opt/etc/parseinfo.sh`, invoked by the sto
 `/opt/usr/share/samshush-boot-v1`, runs the original script first, then starts a
 separate root job without waiting for it. The job has a 180-second timeout and
 checks the firmware, boot service and saved file hashes before reapplying the
-selected scopes. It uses the
-existing runtime journals and operation lock. Each service group snapshots unit
-state in a batch, journals every selected unit before masking, then masks without
+selected scopes. It uses the existing runtime journals and operation lock. Each
+service group snapshots unit state in a batch, journals every selected unit before
+masking, then masks without
 implicit reloads, reloads once, stops the batch and verifies it. Partial failure
 uses the same journaled rollback. Groups remain sequential. It opens no network
 listener and does not alter Developer Mode, firmware images or the vendor service cache.
 
 Use `startup audit` for boot metadata and `startup probe` for a temporary root
-interpreter check without installation. Run `startup run` to test the installed path. After a reboot, use `startup status`
-and the ordinary scope status commands before any host-side apply. Require a new
-boot ID and successful `/run/samshush-boot.result` and `.log` evidence. Installation
+interpreter check without installation. Run `startup run` to test the installed
+path. After a reboot, use `startup status` and the ordinary scope status commands
+before any host-side apply. Require a new boot ID and successful `/run/samshush-boot.result` and `.log` evidence. Installation
 alone does not establish reboot persistence. Failed or interrupted jobs retain
-recovery evidence and do not retry automatically. `startup status` returns failure
-until the current run completes successfully, including when a job is queued.
+recovery evidence and do not retry automatically. When installed, `startup status`
+returns failure until the current run completes successfully, including when a
+job is queued. An absent installation is reported separately.
 Missing or duplicate unit records, missing properties and malformed service PIDs
 fail validation before mutation. The host tests cover partial masking, reload and
 stop failures, rollback, queued jobs, stale results and command overlap.
@@ -159,7 +160,9 @@ user-facing README synchronized when behavior changes.
 - Restore optional app flags with `apps restore --group GROUP`, then restore
   their runtime units with `services GROUP restore`. Use `certificates restore`
   and `auto-update restore` for those independent scopes; the plain `restore`
-  command does not remove them. Verify each restored layer.
+  command does not remove them. If an app restart fails while its units are still
+  masked, retain the app journal and retry its restore after the runtime restore.
+  Verify each restored layer.
 - `apps restore` retains an audit journal. A new apply deliberately refuses it;
   archive it only after verifying restoration and saving the evidence locally.
 - A full reboot clears `/run` controls. The optional startup hook reapplies its
@@ -197,19 +200,18 @@ before disabling them, and preserve core networking, shared sensors and playback
 
 Test retained features in the running interface where possible and label user
 observations separately. For persistence: save the boot ID, finish cleanup, reboot
-using a supported method, require a changed boot ID, and inspect `startup status` plus the ordinary scope status commands BEFORE any
-host-side reapplication. Run `apps verify` to check native launch denial. Test standby/wake separately. Do not equate a software
-reboot with a power cycle, or either with survival across a firmware update.
+using a supported method, require a changed boot ID, and inspect `startup status`
+plus the ordinary scope status commands before any host-side reapplication. Run
+`apps verify` to check native launch denial. Test standby/wake separately. Do not
+equate a software reboot with a power cycle, or either with survival across a
+firmware update.
 
 The 2026-10-25 live deployment verified 25 voice app blocks, eight startup guards,
 24 voice units, ambient-sound and 17 optional app blocks. All selected native apps
 rejected direct launches. Another 19 runtime units are masked, and all 11
 certificate overlays matched their replacement hashes. Native Auto Update reads
-Off. A later owner-assisted restart changed the boot ID. Before any host apply,
-all native flags and guards remained intact, Auto Update still read Off, and the
-startup job reapplied all runtime masks and certificate overlays. Post-boot checks
-read flags and process absence without launching apps. Startup removal also
-restored the original script's bytes, metadata and security label on the TV.
+Off. Startup removal also restored the original script's bytes, metadata and
+security label on the TV.
 
 The owner reported a temporary failure to leave Art Mode around the earlier
 low-level reboot. Art, ambient-support, remoteapp and TV-viewer remain enabled.

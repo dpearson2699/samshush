@@ -19,8 +19,8 @@ It uses Python tools and temporary helpers on the TV:
 
 App blocks use persistent settings. An optional startup hook reapplies service
 masks and certificate changes in the background, without your computer. Remove it
-with `startup remove` before restoring those controls. Firmware updates can reset the
-changes or patch the root exploit, so check compatibility before updating.
+with `startup remove` before restoring those controls. Firmware updates can reset
+the changes or patch the root exploit, so check compatibility before updating.
 
 ## Usage
 

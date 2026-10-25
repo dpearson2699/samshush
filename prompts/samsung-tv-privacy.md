@@ -1,6 +1,6 @@
 # Samsung TV privacy and durable voice shutdown
 
-Version 1.2 — 2026-10-25. A reusable task prompt for GPT-6 Astra or a comparably capable tool-using model. Paste this whole document into a coding-agent session with local filesystem, terminal and web access. Fill in what you know; discover the rest. This is a workflow for recent Samsung TVs, not a claim that every model is rootable or supports the same controls.
+Version 1.3, 2026-10-25. A reusable task prompt for GPT-6 Astra or a comparably capable tool-using model. Paste this whole document into a coding-agent session with local filesystem, terminal and web access. Fill in what you know; discover the rest. This is a workflow for recent Samsung TVs, not a claim that every model is rootable or supports the same controls.
 
 ## Task and inputs
 
@@ -21,6 +21,7 @@ scope:
   unwanted_apps: []            # Explicit choices, e.g. TV Plus, Gaming Hub, Health.
   certificate_changes: false
   disable_automatic_firmware_updates: false
+  automatic_boot_reapplication: false
 preserve:
   - Settings and normal remote navigation
   - HDMI inputs, HDMI-CEC, playback and audio output
@@ -55,17 +56,19 @@ Offline extraction must preserve originals and record extractor revisions, integ
 
 ## Implement durable controls
 
-For `operation: apply`, continue through implementation and relevant verification within this scope. Make routine choices independently. Ask only for missing physical interaction or a decision that changes the scope or recovery risk. Prepare concrete artifacts before asking for any additional authorization. For `audit`, do not change TV state; disclose if a proposed inspection itself invokes a root payload.
+For `operation: apply`, continue through implementation and relevant verification within this scope. Make routine choices independently. Ask only for missing physical interaction or a decision that changes the scope or recovery risk. Prepare concrete artifacts before asking for any additional authorization. For `audit`, inspect and prepare only. Device audits in this repository use temporary root helpers. Disclose that access step, verify cleanup, and do not apply controls.
 
 Before mutations, save exact preimages and original flags, running states, ownership/labels and activation paths. Provide rollback first. Prefer supported persistent app-disable controls or installed vendor startup guards whose semantics you have verified on this build. A successful command exit is insufficient: verify state readback and observable launch rejection in the correct user context. Do not guess owner UID, package options, database schemas, paths or integer settings.
 
 Stopping a service may leave an app-manager process running. Disabling an enablement link may leave other triggers. Runtime masks under `/run` disappear at reboot. Cover each verified activation route and confirm executable identity before terminating a leftover process. Preserve shared drivers and unrelated processes.
 
-Where only temporary controls are possible, label them per-boot and provide an explicit reapply procedure. Do not silently substitute a host watchdog for on-device persistence. When automatic reapplication is explicitly requested, use the maintained `startup` commands on the supported build. Save the original startup script and metadata, enroll only already-applied scopes, check firmware and preimages, bound execution, and verify removal. Queue the worker without blocking the vendor startup script. Batch service queries and masks within each journaled scope, with one reload and verified rollback. Record monotonic phase timings and reject queued, running or missing completion evidence. Require changed-boot evidence before claiming persistence. Label any startup interval before masks apply as a gap. Do not delete vendor startup files or modify an opaque service cache to manufacture a claim of permanence. Keep unsupported approaches as clearly labeled research candidates.
+Where only temporary controls are possible, label them per-boot and provide an explicit reapply procedure. Do not silently substitute a host watchdog for on-device persistence.
+
+When `automatic_boot_reapplication` is enabled or I explicitly request it, use the maintained `startup` commands on the supported build. Save the original startup script and metadata, enroll only already-applied scopes, check firmware and preimages, bound execution, and verify removal. Queue the worker without waiting for reapplication to finish. Batch service queries and masks within each journaled scope, with one reload and verified rollback. Record monotonic phase timings and reject queued, running or missing completion evidence. Require changed-boot evidence before claiming persistence. Label the interval before runtime masks apply as a gap. Do not delete vendor startup files or modify an opaque service cache to manufacture a claim of permanence.
 
 Deliver a small CLI or cohesive scripts with `doctor`, `inspect`, `plan`, `apply`, `status`, `verify` and `restore` behavior; reuse existing tools instead of adding a parallel framework. Keep model/build-specific details in explicit profiles. Require identity, build and preimage checks before writes. Support repeat runs: report already-applied state, resume only a consistent journal, and stop on drift instead of overwriting it. Record partial failures honestly. Bound command/callback timeouts and retries, retain failure output, and ensure one hung command cannot prevent rollback.
 
-Restore only recorded changes and previously running components. Verify cleanup of staging files, overlays and temporary privileges. A timeout is an unknown outcome: inspect current state before retrying. If the manager or transport becomes unhealthy, prioritize recovery and stop further experiments until recovery is verified.
+If automatic reapplication is installed, remove it with `startup remove` before restoring runtime controls. Restore only recorded changes and previously running components, following AGENTS.md for layer ordering and retained-journal retries. Verify cleanup of staging files, overlays and temporary privileges. A timeout is an unknown outcome: inspect current state before retrying. If the manager or transport becomes unhealthy, prioritize recovery and stop further experiments until recovery is verified.
 
 ## Verification and persistence
 
@@ -74,6 +77,8 @@ Use focused host tests for preconditions, profile mismatch, idempotence, interru
 Check the preserved features in the running TV where possible. Record separately what I observed and what tools verified. Verify the physical microphone switch and remote/input controls; a quiet audit, failed wake word or inactive process is not proof of capture denial. Never claim full microphone shutdown while an input or HAL/DSP/standby route remains unresolved.
 
 Test standby/wake and a full reboot when access and recovery are ready. Save the old boot ID; sync persistent changes and allow transport cleanup before restart. After reconnecting, require a changed boot ID or equivalent reliable boot evidence. Read persistent flags/guards, process state and launch behavior before any host-side reapplication. If automatic reapplication is installed, inspect its current-boot result and each enrolled scope first. Do not run a host apply and then claim the boot job worked. Report software-reboot evidence separately from a power-cycle test. Unreachability alone proves neither reboot success nor failure. Use the device-supported restart procedure; do not escalate blindly through forced reboot commands.
+
+Measure the vendor startup service and background worker separately. A warm status check does not measure fresh application. Compare whole-TV boot performance only under comparable conditions, and do not report the worker duration as added boot delay.
 
 When automatic firmware updates are explicitly in scope, save the native preference, turn it off and verify readback. Preserve manual update capability; do not interrupt a running installation. Explain that the preference does not prove all vendor override paths are blocked.
 
