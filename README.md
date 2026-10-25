@@ -1,41 +1,26 @@
 # Samshush
 
-Inspect Samsung TV firmware and disable unwanted voice, sensing and background
-services with reversible controls. The included profile is verified for the
-**Frame Pro QN65LS03FWFXZA, firmware 1301.0**; other builds need their own assessment.
+Root your Samsung TV and disable unwanted voice, advertising and background
+services. Changes are reversible. It currently supports the
+**Frame Pro QN65LS03FWFXZA running firmware 1301.0**.
 
-### How it works
+## How it works
 
-Samshush runs Python tools on your computer and temporary helpers on the TV.
-Developer Mode provides the entry point; an exploit chain supplies root access.
+Samshush runs on your computer and connects to your TV over the local network.
+It uses Python tools and temporary helpers on the TV:
 
-- **Connect:** Samsung Smart Development Bridge (SDB) connects over the LAN on TCP
-  port 26101. Command injection in SDB’s package handling provides shell execution.
-- **Get root:** The tools combine excessive Linux capabilities in the TV’s .NET
-  runtime with its privileged SDK archive launcher (`sdbd-tarlauncher`) to obtain
-  UID 0 inside a private mount namespace, without flashing firmware.
-- **Run commands:** A temporary root helper connects back to your computer over
-  TCP. Commands and results use per-session HMAC-SHA256 authentication.
-- **Apply controls:** The tools check compatibility, save original state, apply
-  app blocks, service masks or certificate overlays, and verify the result.
+- **Connect:** Samsung's Smart Development Bridge (SDB) provides the connection
+  on TCP port 26101. A command-injection flaw lets Samshush run shell commands.
+- **Get root:** Flaws in the TV's .NET runtime and Samsung's archive launcher
+  provide temporary root access. No firmware flashing is needed.
+- **Apply changes:** Samshush saves the original state, blocks selected apps and
+  services, and filters the certificate files. The helper sends results back over
+  an authenticated TCP connection, then exits. Restore commands undo the changes.
 
-Persistence depends on the control. Native app-disable flags and vendor startup
-markers live on persistent storage; the 25 voice-app blocks and eight markers
-survived a verified software reboot. Newly blocked optional apps use the same
-native mechanism, but have not yet had their own reboot test. Service masks and
-certificate overlays live in `/run` and **clear on every reboot**. They must be
-reapplied after checking the TV's build and current state; Samshush installs no
-automatic startup hook. Ordinary standby can retain this state, but standby and
-a full restart are different events.
-
-Automatic firmware updates can be turned off with `auto-update disable`; the tool
-saves the previous native setting for `auto-update restore` and leaves manual
-updates available. This reduces unexpected firmware changes; it does not guarantee
-that every vendor update path is blocked. **Persistence across a firmware update
-is not guaranteed:** an update can reset app flags, replace startup logic or trust
-stores, and close the temporary-root entry point. After any update, reassess the
-build before applying controls. The tools reject an unrecognized build rather
-than assume the old controls still work. Power-cycle persistence has not been tested.
+App blocks use persistent settings. An experimental startup hook reapplies service
+masks and certificate changes on the TV, without your computer. Remove it with
+`startup remove` before restoring those controls. Firmware updates can reset the
+changes or patch the root exploit, so check compatibility before updating.
 
 ## Usage
 
@@ -68,38 +53,34 @@ Your agent handles dependencies, compatibility checks and recovery using
 
 ## Findings & Services
 
-These recommendations target a TV used for HDMI devices and streaming, without
-voice assistants or sound-based monitoring.
+These recommendations assume you use HDMI devices and streaming apps, and don’t
+need voice assistants or sound monitoring.
 
 | Service or feature | Recommendation | What we found and why |
 | --- | --- | --- |
 | Bixby, Alexa and voice recognition | Disable | Separate apps handle assistants, speech recognition and wake words. Native app blocks prevent these apps from launching. |
 | Always-on voice and far-field listening | Disable | Dedicated services support voice activation, including standby paths. Disabling the visible assistant alone does not cover them. |
-| Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Disable for microphone privacy | These provide additional microphone routes. Blocking them can remove hands-free features; keep normal Bluetooth and audio output services. |
-| SmartThings and SmartThings Find | Disable unused integrations | Seven selected client, plugin, hub and Find apps reject launches; three IoT hub activation units are masked. This disables their integrations without removing the shared sensor mediator. |
-| SmartThings Sound Sensor / Pet Care | Turn sound sensing off | SmartThings supports sound-triggered events in standby. Keep the shared sensor mediator: it also provides light-sync integration. |
-| Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` supports sound sensing and microphone-based presence detection. This trades automatic presence detection for privacy; preserve manual Art Mode. |
-| Wi-Fi presence | Disable if unused | The separate LAN-presence service and its activation path are masked for this boot. Core Wi-Fi and networking remain enabled. |
-| Viewing Information Services | Turn optional collection off | Viewing-data consent is separate from voice settings. Use the supported privacy setting rather than broadly disabling content-analysis services. |
-| Content analysis and iACR | Keep enabled | Content-analysis code includes logo recognition and HDMI auto-detection; iACR exposes playback controls. Treating the whole stack as advertising risks useful input features. |
-| Screen-based game/app recognition | Disable if unused | The installed model uses INT8 operations with a 64×64 input; capture code requests 960×540 frames at a configured 2.5-second interval. The recognition launcher and UI-image detector are masked for this boot, with their processes absent. |
-| Advertising and usage analytics | Disable dedicated components | Adagent, targeted-ad and CoBA ad apps reject launches. The adagent unit and six analytics/diagnostic reporting units are masked for this boot; this does not cover every telemetry path. |
-| TV Plus, Gaming Hub and Samsung Health | Disable if unused | Seven selected apps reject launches, and five Health activation units are masked. Shared TV Plus broadcast/channel backends remain available. |
-| PISA shared framework | Preserve account-consent integration | PISA also manages account-consent and customization clients. Block the separate adagent app while preserving the framework that schedules those clients. |
+| Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Disable for microphone privacy | These add microphone inputs beyond the TV’s built-in mic. Blocking them can remove hands-free features. Keep normal Bluetooth and audio output services. |
+| SmartThings and SmartThings Find | Disable unused integrations | Samshush blocks the selected client, plugin, hub and Find apps and the IoT hub startup paths. The shared sensor service stays enabled for light sync. |
+| SmartThings Sound Sensor / Pet Care | Turn sound sensing off | SmartThings can trigger events from sound, including in standby. The shared sensor service also handles light sync, so keep it enabled. |
+| Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode stays available. |
+| Wi-Fi presence | Disable if unused | Samshush blocks the LAN-presence service and its startup path. Normal Wi-Fi and networking stay enabled. |
+| Viewing Information Services | Turn optional collection off | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
+| Content analysis and iACR | Keep enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
+| Screen-based game/app recognition | Disable if unused | The detector requests 960×540 frames at a configured 2.5-second interval, then feeds a 64×64 image into an INT8 model. Samshush blocks the recognition launcher and UI-image detector. |
+| Advertising and usage analytics | Disable dedicated components | Samshush blocks Adagent, targeted-ad, CoBA ads and the selected analytics and diagnostic-reporting services. Other apps may still send telemetry. |
+| TV Plus, Gaming Hub and Samsung Health | Disable if unused | Samshush blocks the selected apps and Health startup paths. Shared TV Plus broadcast and channel services stay enabled. |
+| PISA shared framework | Keep enabled | PISA schedules account-consent and customization services as well as ads. Block its separate adagent app to preserve those other functions. |
 | Remote Management | Leave off unless needed for support | The support daemon includes packet-dump capability. That is a reason to limit remote support, not evidence of continuous packet capture. |
-| HDMI-CEC / Anynet+ and ARC/eARC | Keep enabled | CEC controls connected-device power and remote commands; ARC/eARC returns audio to the soundbar. Removing either works against normal HDMI use. |
-| eMudhra / emSign trust roots | Remove the four selected roots | All 11 targeted certificate files now use verified replacement overlays, preserving unrelated certificates. Removal lasts for this boot; embedded app trust stores and already-cached certificates are outside this coverage. |
-| Automatic firmware updates | Turn off; update manually after assessment | The native Auto Update setting is verified Off. Manual updating remains available; a firmware update can reset controls or close the root entry point. |
+| HDMI-CEC / Anynet+ and ARC/eARC | Keep enabled | CEC handles device power and remote commands. ARC/eARC sends audio to the soundbar. |
+| eMudhra / emSign trust roots | Remove the four selected roots | Samshush filters these roots from 11 certificate files and leaves other certificates intact. Embedded app trust stores and cached certificates are unaffected. |
+| Automatic firmware updates | Turn off and update manually | Check compatibility before installing firmware. An update can reset the changes or patch the root exploit. |
 | Settings, manual Art Mode, playback, browser, Netflix, networking, One Connect and DRM | Keep enabled | These provide the TV’s core functions. Preserve their shared runtimes and unrelated trust certificates. |
 
-The verified deployment blocks **25 voice apps, ambient-sound and 17 optional
-apps**, with **eight startup guards, 43 runtime unit masks and 11 certificate
-overlays**. The owner confirmed Apple TV picture, sidebar/input selection and
-soundbar volume after the main changes. The voice app blocks and guards survived
-an earlier reboot; the new optional blocks and Auto Update setting have not yet
-had a reboot test. See **How it works** for persistence limits. These controls do
-not establish complete microphone isolation or complete advertising/telemetry
-suppression, and they disable apps rather than uninstall their files.
+Apps are disabled, not uninstalled. Apple TV playback, the sidebar, input selection
+and soundbar volume still work on the tested TV. This doesn’t cover every microphone
+input or telemetry source. See [AGENTS.md](AGENTS.md#prove-the-outcome) for test
+coverage and remaining gaps.
 
 ## Development
 
@@ -118,4 +99,11 @@ See [NOTICE](NOTICE) for third-party code, device payloads and firmware.
 
 ## Credits
 
-I had originally started this mid Oct after seeing [this tweet](https://x.com/lucataco/status/2111846873216553433?s=46) from [@lucataco](https://x.com/lucataco) - getting my Frame TV to boot faster, stop suspending volume and removing all the unnecessary apps sounded great. In parallel I ran across [@log4j’s](https://x.com/log4j) thread on [the spyware, adware and extremely questionable findings](https://x.com/log4j/status/2113014142600953868?s=46) on their Samsung TV. This inspired me to push harder in my rooting activities and to see how far Astra would go in terms of rooting my TV over the network (it turns out: pretty far!).
+I started this in mid-October after seeing [this tweet](https://x.com/lucataco/status/2111846873216553433?s=46)
+from [@lucataco](https://x.com/lucataco). Getting my Frame TV to boot faster, stop
+suspending volume and lose the unnecessary apps sounded great.
+
+Then I came across [@log4j’s](https://x.com/log4j) thread on
+[the spyware, adware and extremely questionable findings](https://x.com/log4j/status/2113014142600953868?s=46)
+on their Samsung TV. That pushed me to see how far Astra could get rooting my TV
+over the network. It turns out: pretty far!

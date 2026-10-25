@@ -194,7 +194,7 @@
     "Voice controls do not establish complete microphone capture denial.",
     "Eleven certificate overlays and 19 optional service masks are verified for the current boot only.",
     "Chromium embedded roots, cert-svc SQLite stores and private app TLS caches remain unchanged.",
-    "No firmware repack, signing, flashing, automatic reboot or persistent root hook.",
+    "No firmware repack, signing or flashing. Automatic boot reapplication is an explicitly installed, reversible root hook.",
     "Native Auto Update is Off; vendor override paths and firmware-update persistence are not guaranteed."
   ],
   "last_verified_utc": "2026-10-25T14:29:37Z",
@@ -339,5 +339,16 @@
     "last_verified_utc": "2026-10-25T14:55:26Z",
     "reboot_verified": false,
     "manual_updater_preserved": true
+  },
+  "automatic_reapplication": {
+    "implementation": "tools/startup.py",
+    "hook": "/opt/etc/parseinfo.sh",
+    "boot_service": "AT-HUB.service",
+    "state": "/opt/usr/share/samshush-boot-v1",
+    "selection": "Completed runtime journals only",
+    "installed": false,
+    "reboot_verified": false,
+    "removal_verified_on_device": false,
+    "firmware_update_survival_guaranteed": false
   }
 }

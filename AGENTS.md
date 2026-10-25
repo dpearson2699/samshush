@@ -11,7 +11,8 @@ Preserve Settings, normal remote navigation, HDMI/CEC, playback, audio output,
 networking, DRM, manual updates, One Connect, Netflix, browser/shared runtimes and manual
 Art Mode. Microphone shutdown takes priority over microphone-based automatic Art
 presence sensing; explain that loss. Do not flash firmware, downgrade, develop a
-launcher or add a persistent root hook as part of ordinary service shutdown.
+launcher or install a persistent root hook as part of ordinary service shutdown.
+Automatic boot reapplication is a separate, explicit scope.
 
 The [reusable prompt](prompts/samsung-tv-privacy.md) describes the general method.
 This file owns the repository layout and concrete commands. Reuse these tools
@@ -77,7 +78,8 @@ and device identifiers; do not publish them in a Gist or commit them.
 | `services GROUP apply/status/restore` | Independently control advertising, reporting, wifi-presence, health, smartthings or screen-recognition runtime units. |
 | `certificates apply/status/restore` | Overlay 11 verified certificate files in a separate journal, removing four emSign roots without disturbing voice state. Current boot only. |
 | `auto-update status/disable/restore` | Read or set the native Auto Update option; preserve its original value and leave manual updater services intact. |
-| `restore` | Remove recorded runtime masks/overlays and restart units that were previously active. |
+| `startup install/status/run/remove` | Save currently applied runtime scopes for automatic boot reapplication, inspect it, test the installed startup path, or restore the original startup script. |
+| `restore` | Remove recorded runtime masks/overlays and restart units that were previously active. Requires startup removal first when installed. |
 | `apps restore` | Remove recorded startup guards, restore app flags and restart previously running apps. |
 
 For an authorized, compatible voice shutdown: inspect → audit → save pre-state →
@@ -99,6 +101,34 @@ uses `vconftool set -t int KEY VALUE -f`, and verifies readback. Its journal is
 persistent; a failed write retains recovery evidence. Do not stop a running
 firmware installation or mask the general updater to change this preference.
 
+## Automatic boot reapplication
+
+When explicitly requested, use `startup install` after applying and verifying the
+selected runtime controls. It enrolls only completed, matching journals. It does
+not enable unapplied groups or change native app flags and update preferences.
+
+The exact-build integration replaces `/opt/etc/parseinfo.sh`, invoked by the stock
+`AT-HUB.service`. It saves the original bytes and metadata under
+`/opt/usr/share/samshush-boot-v1`, runs the original script first, then starts a
+separate root job with a 180-second timeout. The job checks the firmware, boot
+service and saved file hashes before reapplying the selected scopes. It uses the
+existing runtime journals and operation lock. It opens no network listener and
+does not alter Developer Mode, firmware images or the vendor service cache.
+
+Use `startup audit` for boot metadata and `startup probe` for a temporary root
+interpreter check without installation. Run `startup run` to test the installed path. After a reboot, use `startup status`
+and the ordinary scope status commands before any host-side apply. Require a new
+boot ID and successful `/run/samshush-boot.result` and `.log` evidence. Installation
+alone does not establish reboot persistence. Failed or interrupted jobs retain
+recovery evidence and do not retry automatically.
+
+Run `startup remove` before restoring runtime controls or changing the enrolled
+scopes. It restores the original script and metadata while leaving current
+controls applied. Then use the relevant restore commands, or reinstall after
+verifying a changed selection. On changed hook or backup bytes, stop and inspect
+rather than overwriting them. Keep scripts, profile, AGENTS.md and the concise,
+user-facing README synchronized when behavior changes.
+
 ## Recovery and repeat runs
 
 - Inspect before retrying after a timeout: the outcome is unknown. Do not start a
@@ -109,7 +139,8 @@ firmware installation or mask the general updater to change this preference.
   same owner share; Auto Update uses `frame-auto-update-v1`. Optional runtime
   journals are `/run/frame-services-GROUP-v1`; certificates use
   `/run/frame-certificates-v1`. Do not delete journals or stale locks to force an apply.
-- For voice recovery, run `restore` to remove runtime masks, then `apps restore` to
+- Remove automatic reapplication first with `startup remove`, if installed.
+  For voice recovery, run `restore` to remove runtime masks, then `apps restore` to
   remove guards and restore flags. A runtime restart may fail while native blocks
   remain: retain its journal and retry `restore` after the app restore succeeds.
   Verify both layers and their original processes before claiming recovery.
@@ -119,7 +150,8 @@ firmware installation or mask the general updater to change this preference.
   command does not remove them. Verify each restored layer.
 - `apps restore` retains an audit journal. A new apply deliberately refuses it;
   archive it only after verifying restoration and saving the evidence locally.
-- Any full reboot clears `/run` controls. Native app flags/guards and the update
+- A full reboot clears `/run` controls. The optional startup hook reapplies its
+  enrolled scopes. Native app flags/guards and the update
   preference use persistent storage; survival across a firmware update is not
   guaranteed. Do not use reboot as a substitute for checking a failed persistent restore.
 - On preimage/build drift or an unhealthy service manager, stop mutations and
@@ -153,8 +185,8 @@ before disabling them, and preserve core networking, shared sensors and playback
 
 Test retained features in the running interface where possible and label user
 observations separately. For persistence: save the boot ID, finish cleanup, reboot
-using a supported method, require a changed boot ID, and run `apps verify` BEFORE
-reapplying runtime masks. Test standby/wake separately. Do not equate a software
+using a supported method, require a changed boot ID, and inspect `startup status` plus the ordinary scope status commands BEFORE any
+host-side reapplication. Run `apps verify` to check native launch denial. Test standby/wake separately. Do not equate a software
 reboot with a power cycle, or either with survival across a firmware update.
 
 The 2026-10-25 live deployment verified 25 voice app blocks, eight startup guards,
@@ -163,7 +195,8 @@ rejected direct launches. Another 19 runtime units are masked, and all 11
 certificate overlays matched their replacement hashes. Native Auto Update reads
 Off. Original voice app/guard reboot persistence was verified earlier that day;
 the new optional flags, ambient-sound and Auto Update preference still need their
-own changed-boot check. Runtime masks/overlays always need reapplication.
+own changed-boot check. Runtime masks/overlays need reapplication. The new startup integration has passed
+isolated host tests but is not yet installed or reboot-verified.
 
 The owner confirmed Apple TV picture, sidebar/input selection and soundbar volume
 after the main optional changes. Manual Art Mode, Netflix, browser, power-cycle

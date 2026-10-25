@@ -14,9 +14,11 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 
 import device_scripts
+import startup
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -176,6 +178,12 @@ def main():
     sub.add_parser(
         "debloat-audit", help="Read optional-app, telemetry and detector dependencies"
     )
+    boot = sub.add_parser(
+        "startup", help="Reapply currently selected runtime controls after boot"
+    )
+    boot.add_argument(
+        "operation", choices=("audit", "probe", "install", "status", "run", "remove")
+    )
     sub.add_parser("hdmi-audit", help="Read HDMI-CEC settings and connected devices")
     sub.add_parser(
         "privacy-audit",
@@ -292,7 +300,36 @@ def main():
         "completed": False,
     }
     try:
-        if args.action == "voice-audit":
+        if args.action == "startup" and args.operation in ("audit", "probe"):
+            template = (
+                device_scripts.STARTUP_AUDIT
+                if args.operation == "audit"
+                else device_scripts.STARTUP_PROBE
+            )
+            script = template.replace("@@BUILD@@", policy()["build"])
+        elif args.action == "startup":
+            package = (
+                startup.bundle(policy(), render, ASSETS)
+                if args.operation == "install"
+                else b""
+            )
+            script = startup.control(
+                args.operation, policy()["build"], hashlib.sha256(package).hexdigest()
+            )
+            if args.operation == "install":
+                client.connect()
+                client.require_device()
+                result = client.capture(f"mkdir {stage}")
+                if "\n[exit:0]" not in result.output:
+                    raise ValueError("Cannot create TV staging directory")
+                staged = True
+                with tempfile.TemporaryDirectory(
+                    prefix="samshush-startup-"
+                ) as directory:
+                    path = Path(directory) / "startup.tar.gz"
+                    path.write_bytes(package)
+                    client.push(path, stage / path.name)
+        elif args.action == "voice-audit":
             script = device_scripts.VOICE_AUDIT
         elif args.action == "debloat-audit":
             script = device_scripts.DEBLOAT_AUDIT.replace(

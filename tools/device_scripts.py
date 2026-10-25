@@ -152,7 +152,10 @@ finish() {
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-if [[ $ACTION == restore ]]; then restore; exit 0; fi
+if [[ $ACTION == restore ]]; then
+    [[ ! -e /opt/usr/share/samshush-boot-v1 ]] || fail 'Remove automatic reapplication with startup remove before restoring runtime controls'
+    restore; exit 0
+fi
 [[ $ACTION == apply ]] || fail 'Unknown action'
 [[ ! -e $STATE ]] || fail 'Changes already recorded; run status or restore before applying again'
 [[ $(uname -m) == aarch64 ]] || fail 'Expected AArch64 Frame Pro'
@@ -697,4 +700,57 @@ case "$MODE" in
   ;;
  *) fail 'Unknown operation';;
 esac
+"""
+
+
+STARTUP_AUDIT = r"""#!/bin/bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[[ $(id -u) == 0 ]] || exit 1
+grep -Fxq 'BUILD_ID=@@BUILD@@' /etc/os-release || exit 1
+echo 'STARTUP AUDIT: read-only metadata'
+cat /proc/sys/kernel/random/boot_id
+systemctl show -p UnitPath
+for unit in AT-HUB.service starter.target samshush-boot.service; do
+ echo "UNIT $unit"
+ systemctl show "$unit" -p Id -p LoadState -p ActiveState -p SubState -p MainPID -p User -p FragmentPath -p UnitFileState -p WantedBy -p RequiredBy -p ExecStart -p ExecStartPre -p EnvironmentFiles
+ done
+for file in /opt/etc/parseinfo.sh /usr/lib/systemd/system/AT-HUB.service /usr/bin/gawk /bin/bash; do
+ echo "FILE $file"
+ if [[ -f $file ]]; then stat -c '%n %u:%g %a %s' "$file"; sha256sum "$file"; chsmack "$file"; fi
+ done
+if [[ -f /opt/etc/parseinfo.sh ]]; then head -c 8192 /opt/etc/parseinfo.sh; fi
+echo 'STARTUP AUDIT COMPLETE'
+"""
+
+
+STARTUP_PROBE = r"""#!/bin/bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[[ $(id -u) == 0 ]] || exit 1
+grep -Fxq 'BUILD_ID=@@BUILD@@' /etc/os-release || exit 1
+[[ -x /usr/bin/gawk ]] || { echo 'Stock awk interpreter absent'; exit 1; }
+stage=$(mktemp -d /run/samshush-startup-probe.XXXXXXXX)
+unit=samshush-startup-probe-${stage##*.}.service
+cleanup() {
+ systemctl stop "$unit" >/dev/null 2>&1 || true
+ systemctl reset-failed "$unit" >/dev/null 2>&1 || true
+ rm -rf -- "$stage"
+}
+trap cleanup EXIT
+# Exercise only a temporary root identity write through a transient system unit.
+printf '#!/usr/bin/gawk BEGIN{exit system("id > %s/result")}\n' "$stage" > "$stage/probe"
+chmod 700 "$stage/probe"
+chsmack -a _ "$stage" "$stage/probe"
+systemd-run --unit="$unit" --property=Type=oneshot "$stage/probe"
+for ((i=0;i<50;i++)); do
+ [[ -s $stage/result && $(systemctl show "$unit" -p ActiveState --value) == inactive ]] && break
+ sleep 0.1
+done
+systemctl show "$unit" -p ActiveState -p Result -p ExecMainStatus
+[[ -s $stage/result ]] || { echo 'Startup probe produced no identity evidence' >&2; exit 1; }
+cat "$stage/result"
+grep -q '^uid=0(root)' "$stage/result" || exit 1
+[[ $(systemctl show "$unit" -p Result --value) == success ]] || exit 1
+echo 'STARTUP PROBE PASSED: stock interpreter, system service, UID 0'
 """
