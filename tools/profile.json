@@ -5,7 +5,7 @@
   "root_route": "archive-root",
   "upstream_commit": "4ad2c4d3b0d0e0da4b5b7ebe4a787e94596f416b",
   "runtime_validated": true,
-  "persistence": "Runtime masks/overlays clear on every reboot. Voice app flags and startup guards passed a software-reboot test; new optional flags and Auto Update are stored persistently but have not had a reboot test. Firmware-update survival is not guaranteed.",
+  "persistence": "Native app flags, startup guards and Auto Update Off survived a changed boot. The installed startup hook automatically reapplied the selected runtime masks and certificate overlays. Startup cost and manual Art Mode wake behavior remain under investigation. Firmware-update survival is not guaranteed.",
   "certificates": [
     {
       "path": "/opt/var/lib/ca-certificates/ca-bundle.pem",
@@ -182,17 +182,17 @@
     "complete_microphone_disable_implemented": false,
     "required_physical_action": "Set the TV microphone switch to Off; separately establish a hardware-disabled or microphone-free remote.",
     "remaining_gaps": [
-      "HFP and virtual-microphone service/activation masks clear on reboot.",
+      "HFP and virtual-microphone masks are automatically reapplied after boot; early-boot and standby capture denial remain unverified.",
       "Hardware switch, remote/USB/Bluetooth/browser capture, HAL/DSP and standby denial remain unverified.",
       "Full 25-app restore cycle and retained-feature behavior are not fully live-tested.",
-      "SmartThings settings read back off and ambient-sound is separately blocked; standby capture denial and this new block across reboot remain unverified."
+      "SmartThings settings read back off and the ambient-sound block survived reboot; standby capture denial remains unverified."
     ],
     "external_microphone_findings": "Bluetooth HFP no-built-in-mic support confirmed in conditional code; soundbar Bixby passthrough UI/feature path confirmed. Unconditional capture or cloud upload regardless of Bixby is not established."
   },
   "limits": [
     "Only QN65LS03FWFXZA build T-RSMFAKUC-0090-REL-202607141953 has live evidence.",
     "Voice controls do not establish complete microphone capture denial.",
-    "Eleven certificate overlays and 19 optional service masks are verified for the current boot only.",
+    "The selected runtime masks and certificate overlays were automatically reapplied on a changed boot. Manual Art Mode wake and startup performance still need validation.",
     "Chromium embedded roots, cert-svc SQLite stores and private app TLS caches remain unchanged.",
     "No firmware repack, signing or flashing. Automatic boot reapplication is an explicitly installed, reversible root hook.",
     "Native Auto Update is Off; vendor override paths and firmware-update persistence are not guaranteed."
@@ -213,7 +213,7 @@
     "journal": "/opt/usr/home/owner/share/frame-sound-sensor-v1",
     "last_verified_utc": "2026-10-25T14:30:50Z",
     "disabled_and_launch_denied": true,
-    "reboot_verified": false,
+    "reboot_verified": true,
     "standby_capture_denial_verified": false,
     "shared_sensor_mediator": "Preserved: tvsensor-iot-service supports light sync as well as sensor integration.",
     "settings_readback": {
@@ -323,13 +323,14 @@
     "runtime_units": 19,
     "certificate_overlays": 11,
     "emsign_roots_removed": 4,
-    "reboot_verified": false,
+    "reboot_verified": true,
     "owner_observed": [
       "Apple TV picture",
       "sidebar and input selection",
       "soundbar volume"
     ],
-    "limitations": "Widgets, shared PISA/account-consent services, slive/BMS, embedded trust stores and remaining microphone routes are not covered."
+    "limitations": "Widgets, shared PISA/account-consent services, slive/BMS, embedded trust stores and remaining microphone routes are not covered.",
+    "reboot_check": "Native flag readback and process absence. Explicit launch-denial checks were performed before this reboot."
   },
   "automatic_updates": {
     "key": "db/menu/support/softwareupdate/autoupdate",
@@ -337,7 +338,7 @@
     "original_value": 1,
     "journal": "/opt/usr/home/owner/share/frame-auto-update-v1",
     "last_verified_utc": "2026-10-25T14:55:26Z",
-    "reboot_verified": false,
+    "reboot_verified": true,
     "manual_updater_preserved": true
   },
   "automatic_reapplication": {
@@ -347,10 +348,15 @@
     "state": "/opt/usr/share/samshush-boot-v1",
     "selection": "Completed runtime journals only",
     "installed": true,
-    "reboot_verified": false,
+    "reboot_verified": true,
     "removal_verified_on_device": true,
     "firmware_update_survival_guaranteed": false,
     "service_execution_verified": true,
-    "last_verified_utc": "2026-10-25T15:44:00Z"
+    "last_verified_utc": "2026-10-25T15:59:48Z",
+    "experimental": true,
+    "startup_service_elapsed_seconds": 129.777346,
+    "starter_target_active_at_seconds": 10.675863,
+    "art_mode_wake": "Owner reported a transient failure to leave Art Mode around reboot. Direct cause unproven. Manual Art/remote apps remain enabled; startup work and low-level reboot are possible contributors.",
+    "power_cycle_verified": false
   }
 }

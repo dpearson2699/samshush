@@ -193,11 +193,28 @@ The 2026-10-25 live deployment verified 25 voice app blocks, eight startup guard
 24 voice units, ambient-sound and 17 optional app blocks. All selected native apps
 rejected direct launches. Another 19 runtime units are masked, and all 11
 certificate overlays matched their replacement hashes. Native Auto Update reads
-Off. Original voice app/guard reboot persistence was verified earlier that day;
-the new optional flags, ambient-sound and Auto Update preference still need their
-own changed-boot check. Runtime masks/overlays need reapplication. The startup integration has passed installation, execution through AT-HUB, and
-restoration of the original script on the TV. It is installed again. Reboot
-verification remains pending.
+Off. A later owner-assisted restart changed the boot ID. Before any host apply,
+all native flags and guards remained intact, Auto Update still read Off, and the
+startup job reapplied all runtime masks and certificate overlays. Post-boot checks
+read flags and process absence without launching apps. Startup removal also
+restored the original script's bytes, metadata and security label on the TV.
+
+The owner reported a temporary failure to leave Art Mode around the reboot.
+Art, ambient-support, remoteapp and TV-viewer flags remain enabled. Deviced,
+ambient-ua-agent, networking and HDMI-CEC are running. No stuck system jobs or
+stop-propagation dependency from the selected units to those components was found.
+This does not prove that manual wake is unaffected. Microphone-based automatic
+presence wake is intentionally lost with ambient-sound/far-field blocking.
+
+The startup wrapper ran for about 130 seconds on that boot. `starter.target` was
+active at about 11 seconds, so the wrapper duration is not a measurement of added
+boot time. Per-unit mask timestamps show repeated service-manager work during
+startup. Batch masking/reloads is a follow-up performance candidate, not a verified
+fix for the Power-button symptom. Keep the startup feature experimental until wake
+behavior and startup cost are checked. Prefer a normal Samsung restart or an
+owner-controlled restart for further testing. The earlier single-force systemd
+reboot skips normal unit shutdown and preceded the reported Art Mode problem;
+do not repeat it as the default reboot test.
 
 The owner confirmed Apple TV picture, sidebar/input selection and soundbar volume
 after the main optional changes. Manual Art Mode, Netflix, browser, power-cycle

@@ -63,7 +63,7 @@ need voice assistants or sound monitoring.
 | Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Disable for microphone privacy | These add microphone inputs beyond the TV’s built-in mic. Blocking them can remove hands-free features. Keep normal Bluetooth and audio output services. |
 | SmartThings and SmartThings Find | Disable unused integrations | Samshush blocks the selected client, plugin, hub and Find apps and the IoT hub startup paths. The shared sensor service stays enabled for light sync. |
 | SmartThings Sound Sensor / Pet Care | Turn sound sensing off | SmartThings can trigger events from sound, including in standby. The shared sensor service also handles light sync, so keep it enabled. |
-| Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode stays available. |
+| Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode wake behavior is still being checked. |
 | Wi-Fi presence | Disable if unused | Samshush blocks the LAN-presence service and its startup path. Normal Wi-Fi and networking stay enabled. |
 | Viewing Information Services | Turn optional collection off | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
 | Content analysis and iACR | Keep enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
