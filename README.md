@@ -113,10 +113,11 @@ agent to follow this contribution guide when opening an issue.
 
 **The goal here is that your problem, feature/bug, and prompt should be an input
 into my agent instead, so that I can more carefully curate what gets added here
-and ensure that documentation, AGENTS.md, and all tooling are moving in lockstep.
+and ensure that documentation, AGENTS.md, and all tooling are moving in lockstep.**
+
 I simply can't guarantee that a pull request is going to do all these things,
 and it's often easier these days to address somebody's challenges from scratch,
-or from good inputs rather than trying to review their outputs and fix them.**
+or from good inputs rather than trying to review their outputs and fix them.
 
 ## Credits
 
