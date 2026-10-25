@@ -346,9 +346,11 @@
     "boot_service": "AT-HUB.service",
     "state": "/opt/usr/share/samshush-boot-v1",
     "selection": "Completed runtime journals only",
-    "installed": false,
+    "installed": true,
     "reboot_verified": false,
-    "removal_verified_on_device": false,
-    "firmware_update_survival_guaranteed": false
+    "removal_verified_on_device": true,
+    "firmware_update_survival_guaranteed": false,
+    "service_execution_verified": true,
+    "last_verified_utc": "2026-10-25T15:44:00Z"
   }
 }

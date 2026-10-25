@@ -3,6 +3,7 @@
 import hashlib
 import io
 import tarfile
+import time
 
 ROOT = "/opt/usr/share/samshush-boot-v1"
 HOOK = "/opt/etc/parseinfo.sh"
@@ -35,9 +36,9 @@ check_journal() {
     local directory=$1 name=$2 journal=$3 scope=$4
     [[ -d $journal && ! -L $journal && $(stat -c '%u:%a' "$journal") == 0:700 && -f $journal/complete && $(cat "$journal/scope") == "$scope" ]] || fail "Incomplete or incompatible journal: $journal"
     if [[ $scope == certificates ]]; then
-        cmp "$journal/certs.tsv" "$directory/$name.expected" || fail 'Recorded certificate scope differs from this policy'
+        [[ $(hash "$journal/certs.tsv") == $(hash "$directory/$name.expected") ]] || fail 'Recorded certificate scope differs from this policy'
     else
-        cut -f 1 "$journal/units.tsv" | cmp - "$directory/$name.expected" || fail "Recorded unit scope differs: $name"
+        [[ $(cut -f 1 "$journal/units.tsv" | sha256sum | cut -d ' ' -f 1) == $(hash "$directory/$name.expected") ]] || fail "Recorded unit scope differs: $name"
     fi
 }
 """
@@ -110,7 +111,7 @@ if [[ $ACTION == run ]]; then
     active=$(systemctl show samshush-boot.service -p ActiveState --value)
     [[ $active != active && $active != activating ]] || fail 'Startup worker already running'
     rm -f "$RESULT"
-    systemctl reset-failed samshush-boot.service || true
+    if [[ $active == failed ]]; then systemctl reset-failed samshush-boot.service; fi
     systemctl start AT-HUB.service
     for ((i=0; i<170; i++)); do
         active=$(systemctl show samshush-boot.service -p ActiveState --value)
@@ -118,6 +119,7 @@ if [[ $ACTION == run ]]; then
             if [[ -f $RESULT ]]; then
                 cat "$LOG"
                 [[ $(cat "$RESULT") == "$(cat /proc/sys/kernel/random/boot_id) 0" ]] || fail 'Startup reapplication failed'
+                [[ $(systemctl show AT-HUB.service -p ExecMainStatus --value) == 0 ]] || fail 'Original startup script failed'
                 exit 0
             fi
         fi
@@ -257,6 +259,7 @@ def bundle(policy, render, assets):
         for name, data in files.items():
             info = tarfile.TarInfo(name)
             info.size = len(data)
+            info.mtime = int(time.time())
             info.mode = 0o600
             archive.addfile(info, io.BytesIO(data))
     return output.getvalue()

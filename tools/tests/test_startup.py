@@ -57,12 +57,13 @@ elif name=="stat":
  print(f"0:0:{mode:o}" if args[1]=="%u:%g:%a" else f"0:{mode:o}")
 elif name=="cp": shutil.copy2(args[-2], args[-1])
 elif name=="sha256sum":
- if args[0]=="-c":
+ if args and args[0]=="-c":
   for line in pathlib.Path(args[1]).read_text().splitlines():
    digest,name=line.split("  ",1)
    if hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()!=digest: sys.exit(1)
  else:
-  print(hashlib.sha256(pathlib.Path(args[-1]).read_bytes()).hexdigest()+"  "+args[-1])
+  data=pathlib.Path(args[-1]).read_bytes() if args else sys.stdin.buffer.read()
+  print(hashlib.sha256(data).hexdigest()+"  "+(args[-1] if args else "-"))
 elif name=="chsmack":
  if args[0]!="-a": print(args[0]+' access="_"')
 elif name=="chown": pass

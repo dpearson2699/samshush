@@ -195,8 +195,9 @@ rejected direct launches. Another 19 runtime units are masked, and all 11
 certificate overlays matched their replacement hashes. Native Auto Update reads
 Off. Original voice app/guard reboot persistence was verified earlier that day;
 the new optional flags, ambient-sound and Auto Update preference still need their
-own changed-boot check. Runtime masks/overlays need reapplication. The new startup integration has passed
-isolated host tests but is not yet installed or reboot-verified.
+own changed-boot check. Runtime masks/overlays need reapplication. The startup integration has passed installation, execution through AT-HUB, and
+restoration of the original script on the TV. It is installed again. Reboot
+verification remains pending.
 
 The owner confirmed Apple TV picture, sidebar/input selection and soundbar volume
 after the main optional changes. Manual Art Mode, Netflix, browser, power-cycle
