@@ -5,7 +5,7 @@
   "root_route": "archive-root",
   "upstream_commit": "4ad2c4d3b0d0e0da4b5b7ebe4a787e94596f416b",
   "runtime_validated": true,
-  "persistence": "Native app flags, startup guards and Auto Update Off survived a changed boot. The installed startup hook automatically reapplied the selected runtime masks and certificate overlays. Startup cost and manual Art Mode wake behavior remain under investigation. Firmware-update survival is not guaranteed.",
+  "persistence": "Native app flags, startup guards and Auto Update Off survived a physical power cycle. The installed asynchronous startup hook reapplied all selected runtime masks and certificate overlays before host-side apply. Owner confirmed manual Art Mode, picture and volume. Firmware-update survival is not guaranteed.",
   "certificates": [
     {
       "path": "/opt/var/lib/ca-certificates/ca-bundle.pem",
@@ -192,26 +192,27 @@
   "limits": [
     "Only QN65LS03FWFXZA build T-RSMFAKUC-0090-REL-202607141953 has live evidence.",
     "Voice controls do not establish complete microphone capture denial.",
-    "The selected runtime masks and certificate overlays were automatically reapplied on a changed boot. Manual Art Mode wake and startup performance still need validation.",
+    "Automatic runtime reapplication passed a physical power cycle. Runtime protection has an initial boot interval before its scopes finish; this does not establish complete capture denial.",
     "Chromium embedded roots, cert-svc SQLite stores and private app TLS caches remain unchanged.",
     "No firmware repack, signing or flashing. Automatic boot reapplication is an explicitly installed, reversible root hook.",
     "Native Auto Update is Off; vendor override paths and firmware-update persistence are not guaranteed."
   ],
-  "last_verified_utc": "2026-10-25T14:29:37Z",
+  "last_verified_utc": "2026-10-25T16:31:46Z",
   "verified_voice_controls": {
     "native_app_flags": 25,
     "startup_guards": 8,
     "runtime_units": 24,
     "app_and_guard_reboot_persistence": true,
-    "full_capture_denial": false
+    "full_capture_denial": false,
+    "app_and_guard_power_cycle_persistence": true
   },
-  "verification_scope": "Voice flags/guards refreshed at last_verified_utc. Optional controls, certificate overlays and Auto Update were separately verified on 2026-10-25; timestamps and counts below are historical evidence, not a live status query.",
+  "verification_scope": "Post-power-cycle flags, guards, process absence, runtime masks, certificate overlays, Auto Update and startup timings verified. Direct app launch denial was tested before this reboot. Stored evidence is not a live status query.",
   "sound_sensing": {
     "application_ids": [
       "com.samsung.tv.ambient-sound"
     ],
     "journal": "/opt/usr/home/owner/share/frame-sound-sensor-v1",
-    "last_verified_utc": "2026-10-25T14:30:50Z",
+    "last_verified_utc": "2026-10-25T16:31:46Z",
     "disabled_and_launch_denied": true,
     "reboot_verified": true,
     "standby_capture_denial_verified": false,
@@ -223,7 +224,8 @@
         "sound": "off",
         "camera": "off"
       }
-    }
+    },
+    "power_cycle_verified": true
   },
   "optional_controls": {
     "advertising": {
@@ -330,16 +332,18 @@
       "soundbar volume"
     ],
     "limitations": "Widgets, shared PISA/account-consent services, slive/BMS, embedded trust stores and remaining microphone routes are not covered.",
-    "reboot_check": "Native flag readback and process absence. Explicit launch-denial checks were performed before this reboot."
+    "reboot_check": "Native flag readback and process absence. Explicit launch-denial checks were performed before this reboot.",
+    "power_cycle_verified": true
   },
   "automatic_updates": {
     "key": "db/menu/support/softwareupdate/autoupdate",
     "value": 0,
     "original_value": 1,
     "journal": "/opt/usr/home/owner/share/frame-auto-update-v1",
-    "last_verified_utc": "2026-10-25T14:55:26Z",
+    "last_verified_utc": "2026-10-25T16:31:46Z",
     "reboot_verified": true,
-    "manual_updater_preserved": true
+    "manual_updater_preserved": true,
+    "power_cycle_verified": true
   },
   "automatic_reapplication": {
     "implementation": "tools/startup.py",
@@ -348,22 +352,30 @@
     "state": "/opt/usr/share/samshush-boot-v1",
     "selection": "Completed runtime journals only",
     "installed": true,
-    "reboot_verified": false,
+    "reboot_verified": true,
     "removal_verified_on_device": true,
     "firmware_update_survival_guaranteed": false,
     "service_execution_verified": true,
-    "last_verified_utc": "2026-10-25T16:22:08Z",
-    "experimental": true,
-    "art_mode_wake": "Owner confirmed picture, Power/Art Mode switching and soundbar volume after the startup revision. Kernel boot ID stayed unchanged after remote power procedures. Cause of the earlier transient problem remains unproven.",
-    "power_cycle_verified": false,
+    "last_verified_utc": "2026-10-25T16:31:46Z",
+    "experimental": false,
+    "art_mode_wake": "Owner confirmed picture, Power/Art Mode switching and soundbar volume after the revision, and normal operation after physical power cycling. Cause of the earlier transient problem remains unproven.",
+    "power_cycle_verified": true,
     "baseline_startup_service_elapsed_seconds": 129.777346,
     "baseline_starter_target_active_at_seconds": 10.675863,
-    "previous_revision_reboot_verified": true,
     "runtime_strategy": "Per-group batched snapshots, masks without reload, one reload, batch stop and verified readback",
     "launch_mode": "Nonblocking systemd-run with separate completion verification",
     "phase_clock": "Monotonic /proc/uptime",
     "warm_service_elapsed_seconds": 0.08257,
     "warm_worker_status_seconds": 1.09,
-    "warm_test_scope": "Existing journals and applied controls; no fresh application or reboot"
+    "warm_test_scope": "Existing journals and applied controls; no fresh application or reboot",
+    "cold_boot_service_elapsed_seconds": 3.237255,
+    "cold_boot_service_exit_at_seconds": 8.368424,
+    "cold_boot_worker_started_at_seconds": 13.07,
+    "cold_boot_worker_completed_at_seconds": 107.26,
+    "cold_boot_worker_elapsed_seconds": 94.19,
+    "cold_boot_starter_target_active_at_seconds": 14.129008,
+    "voice_mask_readback_at_seconds": 59.04,
+    "service_group_reloads": 7,
+    "performance_comparison": "One warm check and one physical power-cycle application. Prior wrapper timing was from a different boot; no controlled whole-TV speedup claim."
   }
 }

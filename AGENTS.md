@@ -211,35 +211,43 @@ startup job reapplied all runtime masks and certificate overlays. Post-boot chec
 read flags and process absence without launching apps. Startup removal also
 restored the original script's bytes, metadata and security label on the TV.
 
-The owner reported a temporary failure to leave Art Mode around the reboot.
-Art, ambient-support, remoteapp and TV-viewer flags remain enabled. Deviced,
-ambient-ua-agent, networking and HDMI-CEC are running. No stuck system jobs or
-stop-propagation dependency from the selected units to those components was found.
-After the startup revision, the owner confirmed picture, Power/Art Mode switching
-and soundbar volume worked. The kernel boot ID stayed unchanged after the remote
-power procedures, so those checks do not establish fresh-boot reapplication. The
-original symptom's cause remains unproven. Microphone-based automatic presence
-wake is intentionally lost with ambient-sound/far-field blocking.
+The owner reported a temporary failure to leave Art Mode around the earlier
+low-level reboot. Art, ambient-support, remoteapp and TV-viewer remain enabled.
+No stop-propagation dependency to those components was found. After the startup
+revision, the owner confirmed picture, Power/Art Mode switching and soundbar
+volume worked. The earlier symptom's cause remains unproven. Microphone-based
+automatic presence wake is intentionally lost with ambient-sound/far-field blocking.
 
-The startup wrapper ran for about 130 seconds on that boot. `starter.target` was
-active at about 11 seconds, so the wrapper duration is not a measurement of added
-boot time. Per-unit mask timestamps show repeated service-manager work during
-startup. The revised implementation batches masks, status queries and stops,
-and queues the worker without waiting. This reduces service-manager calls and reloads,
-but is not a verified fix for the Power-button symptom. Fresh-boot performance
-measurements of this revision are pending. A live warm run returned from AT-HUB
-in 83 ms and verified the existing controls in 1.09 seconds. That run did not
-reapply controls or measure a fresh boot. Keep the startup feature experimental
-until wake behavior and startup cost are checked. Prefer a normal Samsung restart or an
-owner-controlled restart for further testing. The earlier single-force systemd
-reboot skips normal unit shutdown and preceded the reported Art Mode problem;
-do not repeat it as the default reboot test.
+The installed revision batches masks, status queries and stops, with seven
+service-manager reloads across the selected groups instead of 43. It queues the
+worker without waiting. A warm run returned from AT-HUB in 83 ms and checked the
+existing controls in 1.09 seconds. This was a status check, not fresh application.
 
-The owner confirmed Apple TV picture, sidebar/input selection and soundbar volume
-after the main optional changes. Manual Art Mode, Netflix, browser, power-cycle
-persistence, full restore and complete microphone capture denial are not fully
-verified. Update `.local/reports/current-state.json` after live work with timestamps,
-per-control evidence, recovery commands and explicit gaps.
+On the owner's subsequent physical power cycle, the kernel boot ID changed.
+Before any host apply, the startup job had reapplied every enrolled scope, all
+native flags and guards remained intact, and Auto Update still read Off. AT-HUB
+ran for 3.237 seconds and exited 8.368 seconds after boot. The background worker
+ran from 13.07 to 107.26 seconds, taking 94.19 seconds. Voice mask readback finished
+at 59.04 seconds. The logs expose the interval before runtime controls are ready.
+Native launch denial was tested before this reboot, while the post-boot check
+read flags and process absence without launching apps.
+
+The previous wrapper ran for about 130 seconds, with `starter.target` active at
+about 11 seconds. On the physical power cycle, that target became active at
+14.129 seconds. These are different boots, not a controlled whole-TV speed
+comparison. The verified improvement is fewer manager operations and a handoff
+that finishes before the worker. Do not describe the worker's duration as added
+boot delay. Prefer an owner-controlled restart. The earlier single-force systemd
+reboot skips normal unit shutdown and must not be the default test. On this TV,
+the remote power procedures retained the kernel boot ID. If the empty local SDB
+server cannot reconnect after a power cycle despite open TV ports, restarting
+that local server recovered the connection without changing TV settings.
+
+The owner confirmed Apple TV picture, sidebar/input selection, soundbar volume
+and manual Art Mode. Netflix, browser, full restore, firmware-update persistence
+and complete microphone capture denial are not fully verified. Update
+`.local/reports/current-state.json` after live work with timestamps, per-control
+evidence, recovery commands and explicit gaps.
 
 Screen recognition is separate from Gaming Hub and from the retained
 `canalysis-service`/iACR input/playback stack. The installed model has a FLOAT32

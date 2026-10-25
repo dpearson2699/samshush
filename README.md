@@ -17,7 +17,7 @@ It uses Python tools and temporary helpers on the TV:
   services, and filters the certificate files. The helper sends results back over
   an authenticated TCP connection, then exits. Restore commands undo the changes.
 
-App blocks use persistent settings. An experimental startup hook reapplies service
+App blocks use persistent settings. An optional startup hook reapplies service
 masks and certificate changes in the background, without your computer. Remove it
 with `startup remove` before restoring those controls. Firmware updates can reset the
 changes or patch the root exploit, so check compatibility before updating.
