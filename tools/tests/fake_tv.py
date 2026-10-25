@@ -69,44 +69,77 @@ elif name == "umount":
     p.unlink()
     Path(str(p) + ".original").rename(p)
 elif name == "systemctl":
+    with (root / "systemctl-calls.jsonl").open("a") as log:
+        log.write(json.dumps(args) + "\n")
     cmd = args[0]
     if cmd == "daemon-reload":
-        raise SystemExit(0)
-    unit = next(
-        (s for s in args[1:] if s.endswith((".service", ".path", ".busname"))), ""
-    )
-    entry = state.get(unit, {"active": "inactive", "load": "not-found"})
-    mask = root / "units" / unit
-    if cmd == "show":
-        key = args[args.index("-p") + 1]
-        value = {
-            "LoadState": "masked" if mask.is_symlink() else entry.get("load", "loaded"),
-            "ActiveState": entry["active"],
-            "MainPID": "123"
-            if entry["active"] == "active"
-            else str(config.get("failed_main_pid", 0)),
-        }[key]
-        print(value if "--value" in args else key + "=" + value)
-    elif cmd == "mask":
-        mask.symlink_to("/dev/null")
-    elif cmd == "unmask":
-        mask.unlink(missing_ok=True)
-    elif cmd == "stop":
-        if config.get("fail_stop") == unit:
+        if config.get("fail_reload"):
+            config.pop("fail_reload")
+            (root / "config.json").write_text(json.dumps(config))
             die()
-        if not (entry["active"] == "failed" and config.get("retain_failed_on_stop")):
-            entry["active"] = "inactive"
-        state[unit] = entry
-        save()
-    elif cmd == "start":
-        entry["active"] = "active"
-        state[unit] = entry
-        save()
-    elif cmd == "is-active":
-        raise SystemExit(0 if entry["active"] == "active" else 3)
-    elif cmd == "is-enabled":
-        print("masked" if mask.is_symlink() else "enabled")
-    else:
-        die("unsupported systemctl: " + repr(args))
+        raise SystemExit(0)
+    units = [s for s in args[1:] if s.endswith((".service", ".path", ".busname"))]
+    if cmd == "show" and config.get("reverse_show"):
+        units.reverse()
+    if cmd == "show" and config.get("omit_record"):
+        units = units[:-1]
+    if cmd == "show" and config.get("duplicate_record"):
+        units += units[:1]
+    for unit in units:
+        entry = state.get(unit, {"active": "inactive", "load": "not-found"})
+        mask = root / "units" / unit
+        if cmd == "show":
+            keys = [args[i + 1] for i, value in enumerate(args) if value == "-p"]
+            values = {
+                "Id": unit,
+                "LoadState": "masked"
+                if mask.is_symlink()
+                else entry.get("load", "loaded"),
+                "ActiveState": entry["active"],
+                "MainPID": "123"
+                if entry["active"] == "active"
+                else str(config.get("failed_main_pid", 0)),
+                "UnitFileState": "masked-runtime" if mask.is_symlink() else "enabled",
+            }
+            for key in keys:
+                if key == config.get("omit_property") or (
+                    key == "MainPID" and not unit.endswith(".service")
+                ):
+                    continue
+                value = values[key]
+                if key == "MainPID" and config.get("bad_pid"):
+                    value = "unknown"
+                print(value if "--value" in args else key + "=" + value)
+            print()
+        elif cmd == "mask":
+            # Assert that even a partially completed batch has all recovery rows.
+            journal = (root / "state/units.tsv").read_text()
+            if any(name + "\t" not in journal for name in units):
+                die("incomplete recovery journal before masking")
+            if config.get("fail_mask") == unit:
+                die()
+            mask.symlink_to("/dev/null")
+        elif cmd == "unmask":
+            mask.unlink(missing_ok=True)
+        elif cmd == "stop":
+            if config.get("fail_stop") == unit:
+                die()
+            if not (
+                entry["active"] == "failed" and config.get("retain_failed_on_stop")
+            ):
+                entry["active"] = "inactive"
+            state[unit] = entry
+            save()
+        elif cmd == "start":
+            entry["active"] = "active"
+            state[unit] = entry
+            save()
+        elif cmd == "is-active":
+            raise SystemExit(0 if entry["active"] == "active" else 3)
+        elif cmd == "is-enabled":
+            print("masked" if mask.is_symlink() else "enabled")
+        else:
+            die("unsupported systemctl: " + repr(args))
+
 else:
     die("unsupported command: " + name)

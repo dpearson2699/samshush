@@ -17,9 +17,15 @@ umask 077
 ROOT=/opt/usr/share/samshush-boot-v1
 HOOK=/opt/etc/parseinfo.sh
 LOCK=/run/samshush-startup.lock
+CONTROL_LOCK=/run/samshush-startup-control.lock
 LOG=/run/samshush-boot.log
 RESULT=/run/samshush-boot.result
 fail() { echo "ERROR: $*" >&2; exit 1; }
+phase() {
+    local uptime idle
+    read -r uptime idle < /proc/uptime
+    printf 'TIMING scope=startup phase=%s monotonic_s=%s\n' "$1" "$uptime"
+}
 hash() { sha256sum "$1" | cut -d ' ' -f 1; }
 [[ $(id -u) == 0 ]] || fail 'UID 0 required'
 identity() {
@@ -53,9 +59,17 @@ if [[ $(sha256sum "$ROOT/original" | cut -d ' ' -f 1) != @@ORIGINAL_HASH@@ ]]; t
     echo 'Original startup script changed' >&2
     exit 1
 fi
+exec > /run/samshush-boot-launch.log 2>&1
+read -r uptime idle < /proc/uptime
+printf 'TIMING scope=launch phase=begin monotonic_s=%s\n' "$uptime"
 cat "$ROOT/original" | /bin/bash
 original_rc=$?
-systemd-run --unit=samshush-boot.service --property=Type=oneshot --property=TimeoutStartSec=180 /bin/bash -c 'set -o pipefail; cat /opt/usr/share/samshush-boot-v1/worker | /bin/bash' > /run/samshush-boot-launch.log 2>&1
+read -r uptime idle < /proc/uptime
+printf 'TIMING scope=launch phase=original_done monotonic_s=%s\n' "$uptime"
+systemd-run --no-block --unit=samshush-boot.service --property=Type=oneshot --property=TimeoutStartSec=180 /bin/bash -c 'set -o pipefail; cat /opt/usr/share/samshush-boot-v1/worker | /bin/bash'
+enqueue_rc=$?
+read -r uptime idle < /proc/uptime
+printf 'TIMING scope=launch phase=enqueued monotonic_s=%s rc=%s\n' "$uptime" "$enqueue_rc"
 exit "$original_rc"
 """
 
@@ -64,26 +78,33 @@ mkdir -m 700 "$LOCK" || fail 'Startup operation already running or interrupted'
 finish() {
     rc=$?
     trap - EXIT
+    phase end
+    printf '%s %s\n' "$(cat /proc/sys/kernel/random/boot_id)" "$rc" > "$RESULT.tmp"
+    mv -f "$RESULT.tmp" "$RESULT"
     rmdir "$LOCK" || rc=1
-    printf '%s %s\n' "$(cat /proc/sys/kernel/random/boot_id)" "$rc" > "$RESULT"
     exit "$rc"
 }
 trap finish EXIT
 trap 'exit 143' TERM
 trap 'exit 130' INT
+rm -f "$RESULT"
 exec > "$LOG" 2>&1
+phase begin
 printf 'STARTUP BOOT '; cat /proc/sys/kernel/random/boot_id
 identity
 verify
+phase verified
 [[ -f $ROOT/installed && -s $ROOT/enabled ]] || fail 'Startup installation incomplete'
 export FRAME_STAGE=$ROOT/certificates
 while IFS=$'\t' read -r name journal scope; do
+    phase "$name.begin"
     echo "REAPPLY $name"
     if [[ ! -e $journal ]]; then
         cat "$ROOT/$name.apply" | /bin/bash
     fi
     check_journal "$ROOT" "$name" "$journal" "$scope"
     cat "$ROOT/$name.status" | /bin/bash
+    phase "$name.end"
 done < "$ROOT/enabled"
 echo 'STARTUP COMPLETE'
 """
@@ -96,29 +117,54 @@ if [[ $ACTION == status ]]; then
     verify
     echo 'Automatic reapplication installed for:'
     cut -f 1 "$ROOT/enabled"
+    active=$(systemctl show samshush-boot.service -p ActiveState --value)
+    job=$(systemctl show samshush-boot.service -p Job --value)
+    if [[ -n $job || -e $LOCK || -e $CONTROL_LOCK || $active == active || $active == activating || $active == deactivating ]]; then
+        echo 'Startup operation is still running. Completion is not yet verified.'
+        exit 1
+    fi
     if [[ -f $RESULT ]]; then
         cat "$RESULT"
         cat "$LOG"
         [[ $(cat "$RESULT") == "$(cat /proc/sys/kernel/random/boot_id) 0" ]] || fail 'Startup reapplication failed or belongs to another boot'
     else
-        echo 'No completed startup run recorded this boot'
+        fail 'No completed startup run recorded this boot'
     fi
     exit 0
 fi
+mkdir -m 700 "$CONTROL_LOCK" || fail 'Another startup command is running or interrupted'
+operation_locked=0
+TEMP=
+finish() {
+    rc=$?
+    trap - EXIT
+    if [[ -n $TEMP ]]; then rm -rf -- "$TEMP"; fi
+    if [[ $operation_locked == 1 ]]; then rmdir "$LOCK" || rc=1; fi
+    rmdir "$CONTROL_LOCK" || rc=1
+    exit "$rc"
+}
+trap finish EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 if [[ $ACTION == run ]]; then
     identity
     verify
     active=$(systemctl show samshush-boot.service -p ActiveState --value)
-    [[ $active != active && $active != activating ]] || fail 'Startup worker already running'
+    job=$(systemctl show samshush-boot.service -p Job --value)
+    [[ -z $job && ! -e $LOCK && $active != active && $active != activating && $active != deactivating ]] || fail 'Startup worker already running'
     rm -f "$RESULT"
     if [[ $active == failed ]]; then systemctl reset-failed samshush-boot.service; fi
     systemctl start AT-HUB.service
     for ((i=0; i<170; i++)); do
         active=$(systemctl show samshush-boot.service -p ActiveState --value)
-        if [[ $active == inactive || $active == failed ]]; then
+        job=$(systemctl show samshush-boot.service -p Job --value)
+        if [[ -z $job && ! -e $LOCK && ( $active == inactive || $active == failed ) ]]; then
             if [[ -f $RESULT ]]; then
                 cat "$LOG"
                 [[ $(cat "$RESULT") == "$(cat /proc/sys/kernel/random/boot_id) 0" ]] || fail 'Startup reapplication failed'
+                # Type=simple can still be finishing its short launch script.
+                hub_active=$(systemctl show AT-HUB.service -p ActiveState --value)
+                if [[ $hub_active == active || $hub_active == activating ]]; then sleep 1; continue; fi
                 [[ $(systemctl show AT-HUB.service -p ExecMainStatus --value) == 0 ]] || fail 'Original startup script failed'
                 exit 0
             fi
@@ -128,17 +174,7 @@ if [[ $ACTION == run ]]; then
     fail 'Startup run did not finish; inspect its service and log before retrying'
 fi
 mkdir -m 700 "$LOCK" || fail 'Startup operation already running or interrupted'
-TEMP=
-finish() {
-    rc=$?
-    trap - EXIT
-    if [[ -n $TEMP ]]; then rm -rf -- "$TEMP"; fi
-    rmdir "$LOCK" || rc=1
-    exit "$rc"
-}
-trap finish EXIT
-trap 'exit 143' TERM
-trap 'exit 130' INT
+operation_locked=1
 if [[ $ACTION == remove ]]; then
     [[ -d $ROOT && ! -L $ROOT ]] || fail 'No startup installation to remove'
     [[ $(stat -c '%u:%a' "$ROOT") == 0:700 ]] || fail 'Unsafe startup directory'
@@ -190,6 +226,7 @@ cp --preserve=all "$ROOT/wrapper" "$TEMP/parseinfo.sh"
 mv -f "$TEMP/parseinfo.sh" "$HOOK"
 verify
 touch "$ROOT/installed"
+rm -f "$RESULT"
 sync
 echo 'Automatic reapplication installed for:'
 cut -f 1 "$ROOT/enabled"

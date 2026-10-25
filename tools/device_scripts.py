@@ -15,12 +15,58 @@ LOCK=/run/frame-runtime-v1.lock
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 hash() { sha256sum -- "$1" | cut -d ' ' -f 1; }
 inode() { stat -Lc '%d:%i' -- "$1"; }
-stopped() {
-    local unit=$1 active
-    active=$(systemctl show "$unit" -p ActiveState --value)
-    [[ $active == inactive ]] && return 0
-    # A masked service may retain its previous failure after stop; it must have no process.
-    [[ $unit == *.service && $active == failed && $(systemctl show "$unit" -p MainPID --value) == 0 ]]
+phase() {
+    local uptime idle
+    read -r uptime idle < /proc/uptime
+    printf 'TIMING scope=%s phase=%s monotonic_s=%s\n' "$SCOPE" "$1" "$uptime"
+}
+# Query once and validate every requested record before trusting any state.
+# Paths/busnames have no MainPID property; services must supply a numeric one.
+snapshot() {
+    local output
+    output=$(systemctl show "${selected[@]}" -p Id -p LoadState -p ActiveState -p MainPID -p UnitFileState) || return 1
+    printf '%s\n\n' "$output" | awk -v names="${selected[*]}" '
+        BEGIN { count=split(names, order, " "); for(i=1;i<=count;i++) if(wanted[order[i]]++) bad=1 }
+        function field(key) { return value[key]=="" ? "-" : value[key] }
+        function record( id,k) {
+            if (!fields) return
+            id=value["Id"]
+            if (!(id in wanted) || seen[id]++ || !("LoadState" in value) ||
+                !("ActiveState" in value) || !("UnitFileState" in value) ||
+                value["LoadState"]=="" || value["ActiveState"]=="" ||
+                (id ~ /[.]service$/ && value["MainPID"] !~ /^[0-9]+$/)) bad=1
+            rows[id]=id "\t" value["LoadState"] "\t" value["ActiveState"] "\t" field("MainPID") "\t" field("UnitFileState")
+            for(k in value) delete value[k]
+            fields=0
+        }
+        /^$/ { record(); next }
+        {
+            pos=index($0,"=")
+            key=substr($0,1,pos-1)
+            if (!pos || key !~ /^(Id|LoadState|ActiveState|MainPID|UnitFileState)$/ || key in value) bad=1
+            value[key]=substr($0,pos+1); fields++
+        }
+        END {
+            record()
+            for(i=1;i<=count;i++) if(seen[order[i]]!=1) bad=1
+            if(bad) exit 1
+            for(i=1;i<=count;i++) print rows[order[i]]
+        }'
+}
+check_masks() {
+    local records unit load active pid masked bad=0
+    records=$(snapshot) || fail 'Invalid or incomplete unit status'
+    while IFS=$'\t' read -r unit load active pid masked; do
+        if [[ $load == masked && $masked == masked* &&
+              -L /run/systemd/system/$unit && $(readlink /run/systemd/system/$unit) == /dev/null ]] &&
+           { [[ $active == inactive ]] || [[ $unit == *.service && $active == failed ]]; } &&
+           { [[ $unit != *.service ]] || [[ $pid == 0 ]]; }; then
+            echo "MASK OK $unit"
+        else
+            echo "MASK DRIFT $unit load=$load masked=$masked active=$active pid=$pid"; bad=1
+        fi
+    done <<< "$records"
+    return "$bad"
 }
 certs() { cat <<'CERTS'
 @@CERTS@@
@@ -86,7 +132,7 @@ restore() {
         while IFS=$'\t' read -r unit was_active; do
             target=/run/systemd/system/$unit
             if [[ -L $target && $(readlink "$target") == /dev/null ]]; then
-                if ! systemctl unmask --runtime "$unit"; then errors=1; fi
+                if ! systemctl unmask --runtime --no-reload "$unit"; then errors=1; fi
             elif [[ -e $target || -L $target ]]; then
                 echo "REFUSING changed runtime unit: $unit" >&2; errors=1
             fi
@@ -122,15 +168,10 @@ if [[ $ACTION == status ]]; then
         done < "$STATE/certs.tsv"
     fi
     if [[ -f $STATE/units.tsv ]]; then
-        while IFS=$'\t' read -r unit was_active; do
-            masked=$(systemctl is-enabled "$unit" 2>/dev/null || true)
-            active=$(systemctl show "$unit" -p ActiveState --value)
-            if [[ $masked == masked* ]] && stopped "$unit"; then
-                echo "MASK OK $unit"
-            else
-                echo "MASK DRIFT $unit masked=$masked active=$active"; bad=1
-            fi
-        done < "$STATE/units.tsv"
+        selected=()
+        while IFS=$'\t' read -r unit was_active; do selected+=("$unit"); done < "$STATE/units.tsv"
+        (( ${#selected[@]} > 0 )) || fail 'Empty unit journal'
+        if ! check_masks; then bad=1; fi
     fi
     exit "$bad"
 fi
@@ -172,12 +213,17 @@ if [[ $SCOPE == certificates || $SCOPE == both ]]; then
     done < <(certs)
 fi
 if [[ $SCOPE == services || $SCOPE == both || $SCOPE == voice ]]; then
-    while read -r unit; do
-        [[ $(systemctl show "$unit" -p LoadState --value) == loaded ]] || fail "Unit absent or already masked: $unit"
-        active=$(systemctl show "$unit" -p ActiveState --value)
+    phase preflight_begin
+    selected=()
+    while read -r unit; do [[ -n $unit ]] && selected+=("$unit"); done < <(units)
+    (( ${#selected[@]} > 0 )) || fail 'No units selected'
+    records=$(snapshot) || fail 'Invalid or incomplete unit preflight'
+    while IFS=$'\t' read -r unit load active pid masked; do
+        [[ $load == loaded ]] || fail "Unit absent or already masked: $unit"
         [[ $active == active || $active == activating || $active == inactive || $active == failed ]] || fail "Unsupported unit state: $unit=$active"
         [[ ! -e /run/systemd/system/$unit && ! -L /run/systemd/system/$unit ]] || fail "Existing runtime override: $unit"
-    done < <(units)
+    done <<< "$records"
+    phase preflight_end
 fi
 mkdir -m 700 -- "$STATE"
 rollback_needed=1
@@ -201,16 +247,26 @@ if [[ $SCOPE == certificates || $SCOPE == both ]]; then
     done < <(certs)
 fi
 if [[ $SCOPE == services || $SCOPE == both || $SCOPE == voice ]]; then
-    while read -r unit; do
-        active=$(systemctl show "$unit" -p ActiveState --value)
+    phase journal_begin
+    records=$(snapshot) || fail 'Invalid or incomplete unit state before masking'
+    # Validate the whole batch again before recording or mutating any unit.
+    while IFS=$'\t' read -r unit load active pid masked; do
+        [[ $load == loaded ]] || fail "Unit changed since preflight: $unit"
         [[ $active == active || $active == activating || $active == inactive || $active == failed ]] || fail "Unit changed since preflight: $unit"
+        [[ ! -e /run/systemd/system/$unit && ! -L /run/systemd/system/$unit ]] || fail "Runtime override appeared: $unit"
+    done <<< "$records"
+    while IFS=$'\t' read -r unit load active pid masked; do
         printf '%s\t%s\n' "$unit" "$active" >> "$STATE/units.tsv"
-        systemctl mask --runtime "$unit"
-        systemctl stop "$unit"
-        masked=$(systemctl is-enabled "$unit" 2>/dev/null || true)
-        [[ $masked == masked* ]] && stopped "$unit" || fail "Unit readback failed: $unit"
-        echo "MASKED $unit"
-    done < <(units)
+    done <<< "$records"
+    phase mask_begin
+    systemctl mask --runtime --no-reload "${selected[@]}"
+    phase reload_begin
+    systemctl daemon-reload
+    phase stop_begin
+    systemctl stop "${selected[@]}"
+    phase readback_begin
+    check_masks || fail 'Unit batch readback failed'
+    phase readback_end
 fi
 touch "$STATE/complete"
 rollback_needed=0

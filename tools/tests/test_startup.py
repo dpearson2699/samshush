@@ -37,6 +37,7 @@ class StartupTests(unittest.TestCase):
             "stage",
         ):
             (self.device / path).mkdir(parents=True)
+        (self.device / "proc/uptime").write_text("100.00 50.00\n")
         self.original = b"echo original\n"
         self.original_hash = hashlib.sha256(self.original).hexdigest()
         self.hook = self.device / "opt/etc/parseinfo.sh"
@@ -67,14 +68,23 @@ elif name=="sha256sum":
 elif name=="chsmack":
  if args[0]!="-a": print(args[0]+' access="_"')
 elif name=="chown": pass
+elif name=="systemctl":
+ root=pathlib.Path(os.environ["STARTUP_TEST_ROOT"])
+ if args[0]=="show":
+  key=args[args.index("-p")+1]
+  if key=="ActiveState": print((root/"worker-state").read_text())
+  elif key=="Job": print((root/"worker-job").read_text() if (root/"worker-job").exists() else "")
+  else: print("0")
+ else: sys.exit(99)
 else: sys.exit(99)
 """)
-        for name in ("id", "stat", "cp", "sha256sum", "chsmack", "chown"):
+        for name in ("id", "stat", "cp", "sha256sum", "chsmack", "chown", "systemctl"):
             executable = self.bin / name
             executable.write_text(
                 f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(self.helper))} {name} "$@"\n'
             )
             executable.chmod(0o700)
+        (self.root / "worker-state").write_text("inactive")
         self.policy = {
             "build": "test",
             "certificates": [],
@@ -125,7 +135,12 @@ else: sys.exit(99)
             input=self.script(text),
             text=True,
             capture_output=True,
-            env=os.environ | {"FRAME_STAGE": str(self.device / "stage")},
+            env=os.environ
+            | {
+                "FRAME_STAGE": str(self.device / "stage"),
+                "STARTUP_TEST_ROOT": str(self.root),
+            },
+            timeout=15,
         )
 
     def action(self, action):
@@ -252,6 +267,105 @@ else: sys.exit(99)
         self.assertNotIn(
             "STARTUP COMPLETE", (self.device / "run/samshush-boot.log").read_text()
         )
+
+    def test_status_rejects_old_success_while_worker_is_active_or_locked(self):
+        self.install()
+        result = self.device / "run/samshush-boot.result"
+        log = self.device / "run/samshush-boot.log"
+        result.write_text("boot-one 0\n")
+        log.write_text("STARTUP COMPLETE\n")
+        self.assertEqual(self.action("status").returncode, 0)
+        (self.root / "worker-state").write_text("activating")
+        self.assertNotEqual(self.action("status").returncode, 0)
+        (self.root / "worker-state").write_text("inactive")
+        lock = self.device / "run/samshush-startup.lock"
+        lock.mkdir()
+        self.assertNotEqual(self.action("status").returncode, 0)
+        self.assertNotEqual(self.action("run").returncode, 0)
+        self.assertEqual(result.read_text(), "boot-one 0\n")
+        lock.rmdir()
+        result.unlink()
+        self.assertNotEqual(self.action("status").returncode, 0)
+
+    def test_queued_worker_and_concurrent_commands_cannot_claim_completion(self):
+        self.install()
+        result = self.device / "run/samshush-boot.result"
+        result.write_text("boot-one 0\n")
+        (self.device / "run/samshush-boot.log").write_text("STARTUP COMPLETE\n")
+        (self.root / "worker-job").write_text("42")
+        self.assertNotEqual(self.action("status").returncode, 0)
+        self.assertNotEqual(self.action("run").returncode, 0)
+        self.assertEqual(result.read_text(), "boot-one 0\n")
+        (self.root / "worker-job").unlink()
+        lock = self.device / "run/samshush-startup-control.lock"
+        lock.mkdir(mode=0o700)
+        for action in ("run", "install", "remove", "status"):
+            with self.subTest(action=action):
+                self.assertNotEqual(self.action(action).returncode, 0)
+        self.assertTrue(self.boot.exists())
+        self.assertTrue(lock.is_dir())
+
+    def test_run_waits_for_queued_worker_and_rejects_failed_result(self):
+        self.install()
+        result = self.device / "run/samshush-boot.result"
+        result.write_text("boot-one 0\n")
+        control = self.bin / "systemctl"
+        control.write_text(f"""#!/bin/bash
+case "$1:$2:$4" in
+ start:AT-HUB.service:)
+  [[ ! -e {result} ]] || exit 97
+  echo 0 > "$STARTUP_TEST_ROOT/polls" ;;
+ show:samshush-boot.service:ActiveState)
+  if [[ -f "$STARTUP_TEST_ROOT/polls" && $(cat "$STARTUP_TEST_ROOT/polls") == 1 ]]; then
+   printf 'boot-one %s\\n' "$(cat "$STARTUP_TEST_ROOT/outcome")" > {result}
+   echo done > {self.device / "run/samshush-boot.log"}
+  fi
+  echo inactive ;;
+ show:samshush-boot.service:Job)
+  if [[ -f "$STARTUP_TEST_ROOT/polls" && $(cat "$STARTUP_TEST_ROOT/polls") == 0 ]]; then echo 42; fi ;;
+ show:AT-HUB.service:ActiveState) echo inactive ;;
+ show:AT-HUB.service:ExecMainStatus) echo 0 ;;
+ *) exit 98 ;;
+esac
+exit 0
+""")
+        sleep = self.bin / "sleep"
+        sleep.write_text('#!/bin/bash\necho 1 > "$STARTUP_TEST_ROOT/polls"\n')
+        sleep.chmod(0o700)
+        for outcome in (0, 7):
+            with self.subTest(outcome=outcome):
+                (self.root / "outcome").write_text(str(outcome))
+                (self.root / "polls").unlink(missing_ok=True)
+                completed = self.action("run")
+                self.assertEqual(
+                    completed.returncode == 0, outcome == 0, completed.stderr
+                )
+                self.assertEqual((self.root / "polls").read_text().strip(), "1")
+                self.assertFalse(
+                    (self.device / "run/samshush-startup-control.lock").exists()
+                )
+
+    def test_launch_enqueues_without_waiting_and_preserves_original_exit(self):
+        self.install()
+        runner = self.bin / "systemd-run"
+        runner.write_text(
+            '#!/bin/bash\n[[ $1 == --no-block ]] || exit 99\nprintf "%s\\n" "$@" > "$STARTUP_TEST_ROOT/enqueued"\nexit 17\n'
+        )
+        runner.chmod(0o700)
+        launch = startup.substitute(startup.LAUNCH, "test")
+        result = self.run_shell(launch)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--no-block", (self.root / "enqueued").read_text())
+        self.assertIn(
+            "rc=17", (self.device / "run/samshush-boot-launch.log").read_text()
+        )
+        self.assertFalse((self.device / "run/samshush-boot.result").exists())
+        original = b"exit 4\n"
+        (self.boot / "original").write_bytes(original)
+        launch = launch.replace(
+            startup.ORIGINAL_HASH, hashlib.sha256(original).hexdigest()
+        )
+        self.assertEqual(self.run_shell(launch).returncode, 4)
 
     def test_bundle_scripts_have_valid_shell_and_short_interpreter_line(self):
         package = startup.bundle(frame.policy(), frame.render, frame.ASSETS)

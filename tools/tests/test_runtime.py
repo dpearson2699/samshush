@@ -29,6 +29,7 @@ class RuntimeTests(unittest.TestCase):
         (self.root / "units").mkdir()
         self.stage = self.root / "staging"
         self.stage.mkdir()
+        (self.root / "uptime").write_text("100.00 50.00\n")
         self.config = {}
         (self.root / "config.json").write_text("{}")
         (self.root / "systemd.json").write_text(
@@ -101,6 +102,7 @@ class RuntimeTests(unittest.TestCase):
         )
         text = text.replace("/run/frame-runtime-v1", str(self.root / "state"))
         text = text.replace("/run/systemd/system/", str(self.root / "units") + "/")
+        text = text.replace("/proc/uptime", str(self.root / "uptime"))
         text = text.replace("/etc/os-release", str(self.root / "os-release"))
         (self.root / "config.json").write_text(json.dumps(self.config))
         return subprocess.run(
@@ -279,6 +281,46 @@ class RuntimeTests(unittest.TestCase):
         self.assertNotEqual(self.run_action("apply").returncode, 0)
         self.assertEqual(os.readlink(link), "/dev/null")
         self.assertFalse((self.root / "mount-count").exists())
+
+    def test_batch_queries_accept_reordered_records_and_reload_once(self):
+        self.config["reverse_show"] = True
+        result = self.run_action("apply", "voice")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [
+            json.loads(line)
+            for line in (self.root / "systemctl-calls.jsonl").read_text().splitlines()
+        ]
+        self.assertEqual(sum(call[0] == "daemon-reload" for call in calls), 1)
+        self.assertEqual(sum(call[0] == "mask" for call in calls), 1)
+        self.assertEqual(sum(call[0] == "stop" for call in calls), 1)
+        self.assertEqual(sum(call[0] == "show" for call in calls), 3)
+        self.assertIn("phase=stop_begin monotonic_s=100.00", result.stdout)
+        self.assertEqual(self.run_action("status").returncode, 0)
+
+    def test_incomplete_or_malformed_batch_fails_before_mutation(self):
+        for config in (
+            {"omit_record": True},
+            {"duplicate_record": True},
+            {"omit_property": "Id"},
+            {"omit_property": "MainPID"},
+            {"omit_property": "UnitFileState"},
+            {"bad_pid": True},
+        ):
+            with self.subTest(config=config):
+                self.config = config
+                result = self.run_action("apply", "voice")
+                self.assertNotEqual(result.returncode, 0)
+                self.assert_original()
+                self.assertEqual(list((self.root / "units").iterdir()), [])
+
+    def test_partial_mask_and_reload_failure_restore_full_batch(self):
+        for config in ({"fail_mask": "two.service"}, {"fail_reload": True}):
+            with self.subTest(config=config):
+                self.config = config
+                result = self.run_action("apply", "voice")
+                self.assertNotEqual(result.returncode, 0)
+                self.assert_original()
+                self.assertEqual(list((self.root / "units").iterdir()), [])
 
     def test_status_detects_drift(self):
         self.assertEqual(self.run_action("apply").returncode, 0)

@@ -348,15 +348,22 @@
     "state": "/opt/usr/share/samshush-boot-v1",
     "selection": "Completed runtime journals only",
     "installed": true,
-    "reboot_verified": true,
+    "reboot_verified": false,
     "removal_verified_on_device": true,
     "firmware_update_survival_guaranteed": false,
     "service_execution_verified": true,
-    "last_verified_utc": "2026-10-25T15:59:48Z",
+    "last_verified_utc": "2026-10-25T16:22:08Z",
     "experimental": true,
-    "startup_service_elapsed_seconds": 129.777346,
-    "starter_target_active_at_seconds": 10.675863,
-    "art_mode_wake": "Owner reported a transient failure to leave Art Mode around reboot. Direct cause unproven. Manual Art/remote apps remain enabled; startup work and low-level reboot are possible contributors.",
-    "power_cycle_verified": false
+    "art_mode_wake": "Owner confirmed picture, Power/Art Mode switching and soundbar volume after the startup revision. Kernel boot ID stayed unchanged after remote power procedures. Cause of the earlier transient problem remains unproven.",
+    "power_cycle_verified": false,
+    "baseline_startup_service_elapsed_seconds": 129.777346,
+    "baseline_starter_target_active_at_seconds": 10.675863,
+    "previous_revision_reboot_verified": true,
+    "runtime_strategy": "Per-group batched snapshots, masks without reload, one reload, batch stop and verified readback",
+    "launch_mode": "Nonblocking systemd-run with separate completion verification",
+    "phase_clock": "Monotonic /proc/uptime",
+    "warm_service_elapsed_seconds": 0.08257,
+    "warm_worker_status_seconds": 1.09,
+    "warm_test_scope": "Existing journals and applied controls; no fresh application or reboot"
   }
 }

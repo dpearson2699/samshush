@@ -110,17 +110,29 @@ not enable unapplied groups or change native app flags and update preferences.
 The exact-build integration replaces `/opt/etc/parseinfo.sh`, invoked by the stock
 `AT-HUB.service`. It saves the original bytes and metadata under
 `/opt/usr/share/samshush-boot-v1`, runs the original script first, then starts a
-separate root job with a 180-second timeout. The job checks the firmware, boot
-service and saved file hashes before reapplying the selected scopes. It uses the
-existing runtime journals and operation lock. It opens no network listener and
-does not alter Developer Mode, firmware images or the vendor service cache.
+separate root job without waiting for it. The job has a 180-second timeout and
+checks the firmware, boot service and saved file hashes before reapplying the
+selected scopes. It uses the
+existing runtime journals and operation lock. Each service group snapshots unit
+state in a batch, journals every selected unit before masking, then masks without
+implicit reloads, reloads once, stops the batch and verifies it. Partial failure
+uses the same journaled rollback. Groups remain sequential. It opens no network
+listener and does not alter Developer Mode, firmware images or the vendor service cache.
 
 Use `startup audit` for boot metadata and `startup probe` for a temporary root
 interpreter check without installation. Run `startup run` to test the installed path. After a reboot, use `startup status`
 and the ordinary scope status commands before any host-side apply. Require a new
 boot ID and successful `/run/samshush-boot.result` and `.log` evidence. Installation
 alone does not establish reboot persistence. Failed or interrupted jobs retain
-recovery evidence and do not retry automatically.
+recovery evidence and do not retry automatically. `startup status` returns failure
+until the current run completes successfully, including when a job is queued.
+Missing or duplicate unit records, missing properties and malformed service PIDs
+fail validation before mutation. The host tests cover partial masking, reload and
+stop failures, rollback, queued jobs, stale results and command overlap.
+Startup control commands have a separate lock so `run` cannot overlap removal or
+installation. Logs record monotonic phase timestamps for the launch handoff, each
+scope, and service preflight, masking, reload, stop and readback. Compare phase
+differences within a boot, not wall-clock timestamps.
 
 Run `startup remove` before restoring runtime controls or changing the enrolled
 scopes. It restores the original script and metadata while leaving current
@@ -203,15 +215,22 @@ The owner reported a temporary failure to leave Art Mode around the reboot.
 Art, ambient-support, remoteapp and TV-viewer flags remain enabled. Deviced,
 ambient-ua-agent, networking and HDMI-CEC are running. No stuck system jobs or
 stop-propagation dependency from the selected units to those components was found.
-This does not prove that manual wake is unaffected. Microphone-based automatic
-presence wake is intentionally lost with ambient-sound/far-field blocking.
+After the startup revision, the owner confirmed picture, Power/Art Mode switching
+and soundbar volume worked. The kernel boot ID stayed unchanged after the remote
+power procedures, so those checks do not establish fresh-boot reapplication. The
+original symptom's cause remains unproven. Microphone-based automatic presence
+wake is intentionally lost with ambient-sound/far-field blocking.
 
 The startup wrapper ran for about 130 seconds on that boot. `starter.target` was
 active at about 11 seconds, so the wrapper duration is not a measurement of added
 boot time. Per-unit mask timestamps show repeated service-manager work during
-startup. Batch masking/reloads is a follow-up performance candidate, not a verified
-fix for the Power-button symptom. Keep the startup feature experimental until wake
-behavior and startup cost are checked. Prefer a normal Samsung restart or an
+startup. The revised implementation batches masks, status queries and stops,
+and queues the worker without waiting. This reduces service-manager calls and reloads,
+but is not a verified fix for the Power-button symptom. Fresh-boot performance
+measurements of this revision are pending. A live warm run returned from AT-HUB
+in 83 ms and verified the existing controls in 1.09 seconds. That run did not
+reapply controls or measure a fresh boot. Keep the startup feature experimental
+until wake behavior and startup cost are checked. Prefer a normal Samsung restart or an
 owner-controlled restart for further testing. The earlier single-force systemd
 reboot skips normal unit shutdown and preceded the reported Art Mode problem;
 do not repeat it as the default reboot test.
