@@ -1,0 +1,42 @@
+{
+  "root_transport": {
+    "repository": "https://github.com/chris-ritsen/samsung-tv-root",
+    "commit": "4ad2c4d3b0d0e0da4b5b7ebe4a787e94596f416b",
+    "patch": "Samsung apphost runtime detection from 8da744bc190543abe063a63b0b515b1e270bc04d",
+    "license": "vendor/LICENSE"
+  },
+  "device_payloads": {
+    "compiler": ".NET SDK 6.0.428",
+    "sources": "payload_sources.py",
+    "build": "uv run --project tools tools/build_payloads.py",
+    "checksums": "assets/SHA256SUMS.json"
+  },
+  "firmware": {
+    "model": "QN65LS03FWFXZA",
+    "archive": "firmware/T-RSMFAKUC-0090_TB-RSWF4AKUC-0090.zip",
+    "bytes": 2439527748,
+    "sha256": "5891b5ac67157403a2cfa4541845cb68f4ddb263860f41bc874e41fb748d1f42",
+    "support_url": "https://www.samsung.com/latin_en/support/model/QN65LS03FWFXZA/",
+    "download_url": "https://org.downloadcenter.samsung.com/downloadfile/ContentsFile.aspx?CDSite=UNI_LATIN_EN&OriginYN=N&ModelType=N&ModelName=QN65LS03FWF&CttFileID=10519224&CDCttType=FM&VPath=FM%2F202609%2F20260908145115921%2FT-RSMFAKUC-0090_TB-RSWF4AKUC-0090.zip"
+  },
+  "extractors": [
+    {
+      "name": "unixtract",
+      "repository": "https://github.com/theubusu/unixtract",
+      "commit": "144cf51e3e1b6e832119fde60f676a6def8266f7"
+    },
+    {
+      "name": "vdfs-unpack",
+      "repository": "https://github.com/gtors/vdfs-unpack",
+      "commit": "0bc1e65b74016fbd59d5d68f09ab7920044be1f9",
+      "patch": "assets/vdfs-unpack.patch"
+    }
+  ],
+  "vendor_python_sha256": {
+    "vendor/samsung_tv_root/__init__.py": "c01a308499f41c05553136a7a9e3d4c95117796a69f31ca449e792c742ba5912",
+    "vendor/samsung_tv_root/archive_root.py": "113b14ea5a92bf728828e2fa0f668afb1f0d21f49762f3c4af8c05e97de950ac",
+    "vendor/samsung_tv_root/resources.py": "70b66360ac7eba32d126d4d08f2a22ebee4847e8795cad0a8c4572c2a4e37af7",
+    "vendor/samsung_tv_root/root_agent.py": "ee959b0e3c315d819a2a0fe89f3a45b744cea7f0330482b8059a82893b2a9c87",
+    "vendor/samsung_tv_root/sdb.py": "587f6d3f54a36386d6205eeabcd750f74cfdd4edf086bcc1f07d915ba40b29e2"
+  }
+}

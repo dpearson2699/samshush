@@ -1,0 +1,12 @@
+The root BSD 3-Clause license applies to original project code and documentation.
+
+The samsung-tv-root transport in tools/vendor/samsung_tv_root and the upstream
+SamsungTvArchiveRoot/SamsungTvRootAgent source and binaries derive from
+https://github.com/chris-ritsen/samsung-tv-root under the Unlicense, reproduced in
+tools/vendor/LICENSE. Revisions and local changes are recorded in tools/provenance.json.
+OwnerExec is original project code.
+
+Samsung firmware and retrieved vendor binaries in the ignored firmware/ directory
+remain subject to their respective owners' terms. The project license does not
+relicense those files, third-party certificate material, or external tools in the
+ignored .local/toolchain/ directory. Preserve their original notices.

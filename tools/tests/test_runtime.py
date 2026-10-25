@@ -1,0 +1,292 @@
+"""Exercise journal/preflight/rollback with simulated mounts and systemd.
+
+This validates shell control flow on the host, not Linux privileges, SMACK,
+mount propagation, or real TV behavior. Every mutable path is a temp fixture.
+"""
+
+import hashlib
+import json
+import os
+import shlex
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+BASE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE))
+from device_scripts import RUNTIME  # noqa: E402 - test discovery adds the tools directory above.
+
+
+class RuntimeTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix="frame-runtime-test-")
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.bin = self.root / "bin"
+        self.bin.mkdir()
+        (self.root / "units").mkdir()
+        self.stage = self.root / "staging"
+        self.stage.mkdir()
+        self.config = {}
+        (self.root / "config.json").write_text("{}")
+        (self.root / "systemd.json").write_text(
+            json.dumps(
+                {
+                    "one.service": {"active": "active"},
+                    "two.service": {"active": "inactive"},
+                }
+            )
+        )
+        (self.root / "os-release").write_text("BUILD_ID=expected-build\n")
+        for name in (
+            "id",
+            "uname",
+            "readlink",
+            "sha256sum",
+            "stat",
+            "chsmack",
+            "cp",
+            "mount",
+            "umount",
+            "systemctl",
+        ):
+            wrapper = self.bin / name
+            wrapper.write_text(
+                "#!/bin/sh\nexec "
+                + shlex.quote(sys.executable)
+                + " "
+                + shlex.quote(str(BASE / "tests/fake_tv.py"))
+                + " "
+                + name
+                + ' "$@"\n'
+            )
+            wrapper.chmod(0o755)
+        self.rows = []
+        for index in range(2):
+            target = self.root / f"ca{index}.pem"
+            target.write_bytes(b"original")
+            staged = self.stage / f"cert-{index}.pem"
+            staged.write_bytes(b"filtered")
+            self.rows.append(
+                "\t".join(
+                    (
+                        str(target),
+                        hashlib.sha256(b"original").hexdigest(),
+                        hashlib.sha256(b"filtered").hexdigest(),
+                        staged.name,
+                    )
+                )
+            )
+
+    def run_action(self, action, scope="both", *, certificate_journal=False):
+        text = RUNTIME
+        if certificate_journal:
+            text = text.replace(
+                "STATE=/run/frame-runtime-v1", "STATE=" + str(self.root / "cert-state")
+            )
+        values = {
+            "ACTION": action,
+            "SCOPE": scope,
+            "BUILD": "expected-build",
+            "CERTS": "\n".join(self.rows),
+            "UNITS": getattr(self, "test_units", "one.service\ntwo.service"),
+        }
+        for name, value in values.items():
+            text = text.replace(f"@@{name}@@", value)
+        text = text.replace(
+            "export PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+            f"export PATH={self.bin}:/usr/bin:/bin",
+        )
+        text = text.replace("/run/frame-runtime-v1", str(self.root / "state"))
+        text = text.replace("/run/systemd/system/", str(self.root / "units") + "/")
+        text = text.replace("/etc/os-release", str(self.root / "os-release"))
+        (self.root / "config.json").write_text(json.dumps(self.config))
+        return subprocess.run(
+            ["/bin/bash"],
+            input=text,
+            text=True,
+            capture_output=True,
+            env=os.environ
+            | {"FAKE_TV": str(self.root), "FRAME_STAGE": str(self.stage)},
+            timeout=30,
+        )
+
+    def test_starting_service_is_stopped_and_restarted_on_restore(self):
+        state = json.loads((self.root / "systemd.json").read_text())
+        state["one.service"]["active"] = "activating"
+        (self.root / "systemd.json").write_text(json.dumps(state))
+        applied = self.run_action("apply", "services")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        restored = self.run_action("restore")
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+        state = json.loads((self.root / "systemd.json").read_text())
+        self.assertEqual(state["one.service"]["active"], "active")
+
+    def assert_original(self):
+        for i in range(2):
+            self.assertFalse((self.root / f"ca{i}.pem").is_symlink())
+            self.assertEqual((self.root / f"ca{i}.pem").read_bytes(), b"original")
+        self.assertFalse((self.root / "state").exists())
+        self.assertFalse((self.root / "state.lock").exists())
+        state = json.loads((self.root / "systemd.json").read_text())
+        self.assertEqual(state["one.service"]["active"], "active")
+        self.assertEqual(state["two.service"]["active"], "inactive")
+
+    def test_apply_status_restore_and_repeated_restore(self):
+        result = self.run_action("apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.run_action("status").returncode, 0)
+        self.assertNotEqual(self.run_action("apply").returncode, 0)
+        result = self.run_action("restore")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_original()
+        self.assertEqual(self.run_action("restore").returncode, 0)
+
+    def test_certificate_apply_and_restore_preserve_existing_voice_controls(self):
+        self.assertEqual(self.run_action("apply", "voice").returncode, 0)
+        original_journal = (self.root / "state/units.tsv").read_bytes()
+        result = self.run_action("apply", "certificates", certificate_journal=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "state/units.tsv").read_bytes(), original_journal)
+        self.assertEqual(self.run_action("status").returncode, 0)
+        result = self.run_action("status", "certificates", certificate_journal=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.run_action("restore", "certificates", certificate_journal=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.run_action("status").returncode, 0)
+        self.assertTrue((self.root / "units/one.service").is_symlink())
+        self.assertEqual((self.root / "ca0.pem").read_bytes(), b"original")
+        self.assertEqual(self.run_action("restore").returncode, 0)
+        self.assert_original()
+
+    def test_failed_certificate_apply_preserves_voice_journal_and_masks(self):
+        self.assertEqual(self.run_action("apply", "voice").returncode, 0)
+        original_journal = (self.root / "state/units.tsv").read_bytes()
+        self.config["fail_mount"] = 2
+        result = self.run_action("apply", "certificates", certificate_journal=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.root / "cert-state").exists())
+        self.assertEqual((self.root / "state/units.tsv").read_bytes(), original_journal)
+        self.assertEqual(self.run_action("status").returncode, 0)
+        self.assertEqual((self.root / "ca0.pem").read_bytes(), b"original")
+
+    def test_voice_scope_masks_and_restores_without_certificate_changes(self):
+        result = self.run_action("apply", "voice")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.root / "mount-count").exists())
+        self.assertFalse((self.root / "state/certs.tsv").exists())
+        self.assertEqual(self.run_action("status").returncode, 0)
+        self.assertIn("microphone shutdown", result.stdout)
+        self.assertEqual(self.run_action("restore").returncode, 0)
+        self.assert_original()
+
+    def test_voice_service_and_activation_units_are_masked_and_restored(self):
+        self.test_units = "voice.path\nvoice.busname\nvoice.service"
+        original = {name: {"active": "active"} for name in self.test_units.splitlines()}
+        (self.root / "systemd.json").write_text(json.dumps(original))
+        result = self.run_action("apply", "voice")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for name in original:
+            self.assertEqual(os.readlink(self.root / "units" / name), "/dev/null")
+        self.assertEqual(self.run_action("status").returncode, 0)
+        self.assertEqual(self.run_action("restore").returncode, 0)
+        self.assertEqual(json.loads((self.root / "systemd.json").read_text()), original)
+        self.assertEqual(list((self.root / "units").iterdir()), [])
+
+    def test_voice_stop_failure_rolls_back_masks(self):
+        self.config["fail_stop"] = "two.service"
+        result = self.run_action("apply", "voice")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(list((self.root / "units").iterdir()), [])
+        self.assert_original()
+
+    def test_failed_unit_is_masked_without_restarting_it_on_restore(self):
+        original = {
+            "one.service": {"active": "failed"},
+            "two.service": {"active": "inactive"},
+        }
+        (self.root / "systemd.json").write_text(json.dumps(original))
+        result = self.run_action("apply", "services")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "one.service\tfailed", (self.root / "state/units.tsv").read_text()
+        )
+        self.assertEqual(self.run_action("restore").returncode, 0)
+        restored = json.loads((self.root / "systemd.json").read_text())
+        self.assertEqual(restored["one.service"]["active"], "inactive")
+
+    def test_masked_failed_unit_without_process_is_verified(self):
+        (self.root / "systemd.json").write_text(
+            json.dumps(
+                {
+                    "one.service": {"active": "failed"},
+                    "two.service": {"active": "inactive"},
+                }
+            )
+        )
+        self.config["retain_failed_on_stop"] = True
+        result = self.run_action("apply", "services")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.run_action("status").returncode, 0)
+        self.config["failed_main_pid"] = 123
+        self.assertNotEqual(self.run_action("status").returncode, 0)
+
+    def test_preimage_drift_aborts_before_first_mount(self):
+        (self.root / "ca1.pem").write_bytes(b"newer CA bundle")
+        result = self.run_action("apply")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.root / "mount-count").exists())
+        self.assertFalse((self.root / "state").exists())
+        self.assertEqual((self.root / "ca0.pem").read_bytes(), b"original")
+
+    def test_persistent_run_filesystem_is_rejected(self):
+        self.config["run_filesystem"] = "ext4"
+        self.assertNotEqual(self.run_action("apply").returncode, 0)
+        self.assert_original()
+
+    def test_wrong_build_aborts(self):
+        (self.root / "os-release").write_text("BUILD_ID=unknown\n")
+        self.assertNotEqual(self.run_action("apply").returncode, 0)
+        self.assert_original()
+
+    def test_second_mount_failure_restores_first(self):
+        self.config["fail_mount"] = 2
+        result = self.run_action("apply")
+        self.assertNotEqual(result.returncode, 0)
+        self.assert_original()
+
+    def test_stop_failure_restores_certificates_masks_and_active_state(self):
+        self.config["fail_stop"] = "two.service"
+        result = self.run_action("apply")
+        self.assertNotEqual(result.returncode, 0)
+        self.assert_original()
+        self.assertEqual(list((self.root / "units").iterdir()), [])
+
+    def test_failed_unmount_retains_journal_for_retry(self):
+        self.assertEqual(self.run_action("apply").returncode, 0)
+        self.config["fail_unmount"] = True
+        self.assertNotEqual(self.run_action("restore").returncode, 0)
+        self.assertTrue((self.root / "state/certs.tsv").exists())
+        self.config.clear()
+        self.assertEqual(self.run_action("restore").returncode, 0)
+        self.assert_original()
+
+    def test_existing_runtime_override_is_untouched(self):
+        link = self.root / "units/one.service"
+        link.symlink_to("/dev/null")
+        self.assertNotEqual(self.run_action("apply").returncode, 0)
+        self.assertEqual(os.readlink(link), "/dev/null")
+        self.assertFalse((self.root / "mount-count").exists())
+
+    def test_status_detects_drift(self):
+        self.assertEqual(self.run_action("apply").returncode, 0)
+        (self.root / "state/cert-0.pem").write_bytes(b"unexpected change")
+        self.assertNotEqual(self.run_action("status").returncode, 0)
+        self.assertEqual(self.run_action("restore").returncode, 0)
+        self.assert_original()
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,18 @@
+{
+  "certificates/cert-00.pem": "9f311d3c0417f83585311521f700d0853f424e1589f56a91285b730f48e961fb",
+  "certificates/cert-01.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-02.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-03.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-04.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-05.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-06.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-07.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-08.pem": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "certificates/cert-09.pem": "7b17ee84f380b6c2a8c1c010a1bdd6c41a26a11ca0eb0b09f9d1496ed63dede7",
+  "certificates/cert-10.pem": "04ebd63b6bb89c1b4ff9d60ca6f7b3303ebcf147363572e4fedbbfa3c69c06d2",
+  "payloads/OwnerExec.dll": "75050e57303ea2e846e1327e3f312895426fa3f959d32ee1bf7a3c4312a90bf2",
+  "payloads/OwnerExec.runtimeconfig.json": "aeb46a15366e38511c192ccf65312442c64e8753b3c16fd2ca0b4cb34a5c59f3",
+  "payloads/SamsungTvArchiveRoot.dll": "d29ccb9b7b71573a6782ddbcd5badf42c53de1a9ed3d00ae0f78c08be78ecb1d",
+  "payloads/SamsungTvRootAgent.dll": "fd3690c28084ada12c8eb50a64bb9e6be6702a8e9b9d405cf21dbe3827ba83dc",
+  "vdfs-unpack.patch": "e4de4c12aaa6ca155305ddce0221ab38ca25c7ccecbaad5b71d5d3e8ffcc20df"
+}
