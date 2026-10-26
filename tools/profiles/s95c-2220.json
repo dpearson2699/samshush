@@ -1,0 +1,306 @@
+{
+  "model": "QN55S95CAFXZA",
+  "build": "T-PTMCAKUC-0090-REL-202603190200",
+  "firmware": "2220.4",
+  "root_route": "archive-root",
+  "device_identity": {
+    "firmware_family": "T-PTMCAKUC-0090",
+    "software_version": "T-PTMCAKUC-0090-2220.4",
+    "architecture": "armv7l"
+  },
+  "voice_privacy": {
+    "application_ids": [
+      "com.samsung.tv.aov-service",
+      "org.tizen.multi-assistant-service",
+      "org.tizen.voice-onboarding",
+      "com.samsung.tv.alexa-client",
+      "com.samsung.tv.alexa-fullscreen-app",
+      "com.samsung.tv.aov-dashboard",
+      "com.samsung.tv.bixby-context-client",
+      "com.samsung.tv.bixby-prov",
+      "com.samsung.tv.bixbycapsuleviewer",
+      "com.samsung.tv.farfieldvoice",
+      "com.samsung.tv.mybixby",
+      "com.samsung.tv.ondevice-voice",
+      "com.samsung.tv.voice-instant-app",
+      "com.samsung.tv.voiceassistant-music",
+      "com.samsung.tv.wakeup-engine-alexa",
+      "com.samsung.tv.wakeup-engine-bixby",
+      "com.samsung.tv.wakeupless",
+      "org.tizen.voice-app",
+      "org.tizen.voice-app-service",
+      "org.tizen.voice-client",
+      "org.tizen.stt-client",
+      "com.samsung.tv.passthru-service",
+      "com.samsung.tv.vif"
+    ],
+    "systemd_units": [
+      "com.samsung.tv.aov-service.path",
+      "com.samsung.tv.aov-service.service",
+      "com.samsung.tv.farfieldvoice.path",
+      "com.samsung.tv.farfieldvoice.service",
+      "org.tizen.multi-assistant-service.path",
+      "org.tizen.multi-assistant-service.service",
+      "org.tizen.voice-client.path",
+      "org.tizen.voice-client.service",
+      "org.tizen.voice-app.path",
+      "org.tizen.voice-app.service",
+      "com.samsung.tv.ondevice-voice.path",
+      "com.samsung.tv.ondevice-voice.service",
+      "com.samsung.tv.wakeupless.path",
+      "com.samsung.tv.wakeupless.service",
+      "com.samsung.tv.bixby-prov.path",
+      "com.samsung.tv.bixby-prov.service",
+      "com.samsung.tv.voiceassistant-music.service",
+      "com.samsung.tv.hfpAgent.busname",
+      "hfp-agent.service",
+      "com.samsung.tv.passthru-service.path",
+      "com.samsung.tv.passthru-service.service"
+    ],
+    "complete_microphone_disable_implemented": false
+  },
+  "units": [
+    "com.samsung.tv.aov-service.path",
+    "com.samsung.tv.aov-service.service",
+    "com.samsung.tv.farfieldvoice.path",
+    "com.samsung.tv.farfieldvoice.service",
+    "org.tizen.multi-assistant-service.path",
+    "org.tizen.multi-assistant-service.service",
+    "org.tizen.voice-client.path",
+    "org.tizen.voice-client.service",
+    "org.tizen.voice-app.path",
+    "org.tizen.voice-app.service",
+    "com.samsung.tv.ondevice-voice.path",
+    "com.samsung.tv.ondevice-voice.service",
+    "com.samsung.tv.wakeupless.path",
+    "com.samsung.tv.wakeupless.service",
+    "com.samsung.tv.bixby-prov.path",
+    "com.samsung.tv.bixby-prov.service",
+    "com.samsung.tv.voiceassistant-music.service",
+    "com.samsung.tv.hfpAgent.busname",
+    "hfp-agent.service",
+    "com.samsung.tv.passthru-service.path",
+    "com.samsung.tv.passthru-service.service"
+  ],
+  "certificates": [],
+  "optional_controls": {
+    "wifi-presence": {
+      "application_ids": [],
+      "systemd_units": [
+        "wifi-presence.path",
+        "wifi-presence.service"
+      ],
+      "reason": "Owner uses Ethernet. Live dependency inventory found no stop propagation into networking or playback; radio power is separately already false."
+    }
+  },
+  "applications": {
+    "com.samsung.tv.alexa-client": {
+      "executable": "/opt/usr/apps/com.samsung.tv.alexa-client/bin/alexa-client",
+      "manifest": "/opt/share/packages/com.samsung.tv.alexa-client.xml"
+    },
+    "com.samsung.tv.alexa-fullscreen-app": {
+      "executable": "/opt/usr/apps/com.samsung.tv.alexa-client/bin/alexa-fullscreen-app",
+      "manifest": "/opt/share/packages/com.samsung.tv.alexa-client.xml"
+    },
+    "com.samsung.tv.ambient-sound": {
+      "executable": "/opt/usr/apps/com.samsung.tv.ambient-sound/bin/ambient-sound",
+      "manifest": "/opt/share/packages/com.samsung.tv.ambient-sound.xml"
+    },
+    "com.samsung.tv.aov-dashboard": {
+      "executable": "/opt/usr/apps/com.samsung.tv.aov-dashboard/bin/aov-dashboard.dll",
+      "manifest": "/opt/share/packages/com.samsung.tv.aov-dashboard.xml"
+    },
+    "com.samsung.tv.aov-service": {
+      "executable": "/usr/apps/com.samsung.tv.aov-service/bin/aov-service",
+      "manifest": "/usr/share/packages/com.samsung.tv.aov-service.xml"
+    },
+    "com.samsung.tv.bixby-context-client": {
+      "executable": "/opt/usr/apps/com.samsung.tv.bixby-context-client/bin/bixby-context-client",
+      "manifest": "/opt/share/packages/com.samsung.tv.bixby-context-client.xml"
+    },
+    "com.samsung.tv.bixby-prov": {
+      "executable": "/opt/usr/apps/com.samsung.tv.bixby-prov/bin/bixby-prov",
+      "manifest": "/opt/share/packages/com.samsung.tv.bixby-prov.xml"
+    },
+    "com.samsung.tv.bixbycapsuleviewer": {
+      "executable": "/opt/usr/apps/com.samsung.tv.bixbycapsuleviewer/bin/bixbycapsuleviewer",
+      "manifest": "/opt/share/packages/com.samsung.tv.bixbycapsuleviewer.xml"
+    },
+    "com.samsung.tv.farfieldvoice": {
+      "executable": "/opt/usr/apps/com.samsung.tv.farfieldvoice/bin/ffv-service",
+      "manifest": "/opt/share/packages/com.samsung.tv.farfieldvoice.xml"
+    },
+    "com.samsung.tv.mybixby": {
+      "executable": "/opt/usr/apps/com.samsung.tv.mybixby/bin/com.samsung.tv.mybixby.dll",
+      "manifest": "/opt/share/packages/com.samsung.tv.mybixby.xml"
+    },
+    "com.samsung.tv.ondevice-voice": {
+      "executable": "/opt/usr/apps/com.samsung.tv.ondevice-voice/bin/ondevice-voice",
+      "manifest": "/opt/share/packages/com.samsung.tv.ondevice-voice.xml"
+    },
+    "com.samsung.tv.passthru-service": {
+      "executable": "/opt/usr/apps/com.samsung.tv.passthru-service/bin/passthru-service",
+      "manifest": "/opt/share/packages/com.samsung.tv.passthru-service.xml"
+    },
+    "com.samsung.tv.vif": {
+      "executable": "/opt/usr/apps/com.samsung.tv.vif/bin/voice-interaction-framework",
+      "manifest": "/opt/share/packages/com.samsung.tv.vif.xml"
+    },
+    "com.samsung.tv.voice-instant-app": {
+      "executable": "/opt/usr/apps/com.samsung.tv.voice-instant-app/bin/com.samsung.tv.voice-instant-app.dll",
+      "manifest": "/opt/share/packages/com.samsung.tv.voice-instant-app.xml"
+    },
+    "com.samsung.tv.voiceassistant-music": {
+      "executable": "/opt/usr/apps/com.samsung.tv.voiceassistant-music/bin/VoiceAssistantMusic.dll",
+      "manifest": "/opt/share/packages/com.samsung.tv.voiceassistant-music.xml"
+    },
+    "com.samsung.tv.wakeup-engine-alexa": {
+      "executable": "/opt/usr/apps/com.samsung.tv.wakeup-engine-alexa/bin/wakeup-engine-alexa",
+      "manifest": "/opt/share/packages/com.samsung.tv.wakeup-engine-alexa.xml"
+    },
+    "com.samsung.tv.wakeup-engine-bixby": {
+      "executable": "/opt/usr/apps/com.samsung.tv.wakeup-engine-bixby/bin/wakeup-engine-bixby",
+      "manifest": "/opt/share/packages/com.samsung.tv.wakeup-engine-bixby.xml"
+    },
+    "com.samsung.tv.wakeupless": {
+      "executable": "/opt/usr/apps/com.samsung.tv.wakeupless/bin/wakeupless",
+      "manifest": "/opt/share/packages/com.samsung.tv.wakeupless.xml"
+    },
+    "org.tizen.multi-assistant-service": {
+      "executable": "/usr/apps/org.tizen.multi-assistant-service/bin/org.tizen.multi-assistant-service",
+      "manifest": "/usr/share/packages/org.tizen.multi-assistant-service.xml"
+    },
+    "org.tizen.stt-client": {
+      "executable": "/opt/usr/apps/org.tizen.voice-client/bin/stt-client",
+      "manifest": "/opt/share/packages/org.tizen.voice-client.xml"
+    },
+    "org.tizen.voice-app": {
+      "executable": "/opt/usr/apps/org.tizen.voice-app/bin/voice-app",
+      "manifest": "/opt/share/packages/org.tizen.voice-app.xml"
+    },
+    "org.tizen.voice-app-service": {
+      "executable": "/opt/usr/apps/org.tizen.voice-app/bin/voice-app",
+      "manifest": "/opt/share/packages/org.tizen.voice-app.xml"
+    },
+    "org.tizen.voice-client": {
+      "executable": "/opt/usr/apps/org.tizen.voice-client/bin/voice-client",
+      "manifest": "/opt/share/packages/org.tizen.voice-client.xml"
+    },
+    "org.tizen.voice-onboarding": {
+      "executable": "/usr/apps/org.tizen.voice-onboarding/bin/voice-onboarding",
+      "manifest": "/usr/share/packages/org.tizen.voice-onboarding.xml"
+    }
+  },
+  "preimages": {
+    "/opt/usr/apps/com.samsung.tv.alexa-client/bin/alexa-client": "d35b993c7bf32c743bc23808f1db21981266552a0eb0a85c9a3c3f66b9239964",
+    "/opt/usr/apps/com.samsung.tv.alexa-client/bin/alexa-fullscreen-app": "143e9512c4a3e221c73c2c68c14087d18bcf1ce2198e59a8056d8b566c07b753",
+    "/opt/usr/apps/com.samsung.tv.ambient-sound/bin/ambient-sound": "5baafd0412494dd9517455d99016060377cbbf07b2c6d3cf86a87cf7732be3c7",
+    "/opt/usr/apps/com.samsung.tv.aov-dashboard/bin/aov-dashboard.dll": "ac86ad1b957bf883401a47f20e36826cd5dadc987cda1aa75844e62e0c7c2966",
+    "/usr/apps/com.samsung.tv.aov-service/bin/aov-service": "af1d5a15167409bf90dd38dc732e0c4a4339e4033c4b0a5ca4af4d3358dd74f4",
+    "/opt/usr/apps/com.samsung.tv.bixby-context-client/bin/bixby-context-client": "7435dba66c058f20272c79da0166671b5ce254c938937331b1d8f543fda863c1",
+    "/opt/usr/apps/com.samsung.tv.bixby-prov/bin/bixby-prov": "f6fba9c436a13b1999c745741e9b739000287912635d6f3d49018a5867ad4ea9",
+    "/opt/usr/apps/com.samsung.tv.bixbycapsuleviewer/bin/bixbycapsuleviewer": "c5b07caf9e08118204003a03db228684556ab778f4097fa1adeed01cae682e3d",
+    "/opt/usr/apps/com.samsung.tv.farfieldvoice/bin/ffv-service": "169499de6a50792e15d24e65900a4c568ad065c20722bf76b5765acf3ec824a1",
+    "/opt/usr/apps/com.samsung.tv.mybixby/bin/com.samsung.tv.mybixby.dll": "219c2b0e50c33ebea2f607378bed8efae3e21cd185a3ba6d5dc5774035bddfb8",
+    "/opt/usr/apps/com.samsung.tv.ondevice-voice/bin/ondevice-voice": "4bcd9f18b51761a835d503aac93f3f0830e93932b95b302c0f6d412d5b77f998",
+    "/opt/usr/apps/com.samsung.tv.passthru-service/bin/passthru-service": "b6b1d9cf5d7e85931cb2496176cd8df6078d6402c03eb2d67fb9c8b541d93870",
+    "/opt/usr/apps/com.samsung.tv.vif/bin/voice-interaction-framework": "94a640555cb0d0f61fa41708d3404e902af0eaf69d46cc46ec747df92a21b05b",
+    "/opt/usr/apps/com.samsung.tv.voice-instant-app/bin/com.samsung.tv.voice-instant-app.dll": "b956076a28bfad021c91ef8f1935e76df9483d4dcc80857da131d82d7c4d4e36",
+    "/opt/usr/apps/com.samsung.tv.voiceassistant-music/bin/VoiceAssistantMusic.dll": "b8f42aebe28ac2fa710e9d07dc68b1c42530652b6cb3adc407aaf2ef2391545c",
+    "/opt/usr/apps/com.samsung.tv.wakeup-engine-alexa/bin/wakeup-engine-alexa": "ae21f4b3b5ac6c16b537943b21159212da41c284839ed975ec37ce2a3e999d8a",
+    "/opt/usr/apps/com.samsung.tv.wakeup-engine-bixby/bin/wakeup-engine-bixby": "de749286a4018571133b60034ecf5c4d6b354e701c2a6faafec60a337cbfb3fa",
+    "/opt/usr/apps/com.samsung.tv.wakeupless/bin/wakeupless": "7ccfa535d222989513e656fc58dd59a4087fa764a9233da46259b736ba5d7831",
+    "/usr/apps/org.tizen.multi-assistant-service/bin/org.tizen.multi-assistant-service": "4b568888f9326fa6648f7ba7916f98915e472ebef973d976da7cf829202b1917",
+    "/opt/usr/apps/org.tizen.voice-client/bin/stt-client": "c388c8fdedf834137b8f5e4b1fc6d8fca762e705774fb39056830d2f80443cd5",
+    "/opt/usr/apps/org.tizen.voice-app/bin/voice-app": "b3c0d69822eea87ad7cdf3480c99fe47122a9d75ee5521ea73518964bd113ecc",
+    "/opt/usr/apps/org.tizen.voice-client/bin/voice-client": "0d15ac3305657d00af8dc384765eca57acf07281dab47b5bae46c4e17bed12bc",
+    "/usr/apps/org.tizen.voice-onboarding/bin/voice-onboarding": "2ee29454ab415dc5e7130b33071d8164f6445abf43cf2d7c574af02a037bb21b",
+    "/usr/lib/systemd/system/com.samsung.tv.aov-service.path": "b2dbf1ba191fd25f7efbc547c88de6779516b8802d24b09642c9ca148dfcab54",
+    "/usr/lib/systemd/system/com.samsung.tv.aov-service.service": "0d5e9e9f886d434d41823d00ad507e0be680e0bbffe4de2b11586b026fbf0fb6",
+    "/usr/lib/systemd/system/com.samsung.tv.farfieldvoice.path": "5b41777ac31e0f3e3ad050185e4aa2d8199211c50a362bef4c95da7bcb02206b",
+    "/usr/lib/systemd/system/com.samsung.tv.farfieldvoice.service": "9dd187b1588da5ce86490a2f0beda50269ef9cde0cde5caa773866ec8f3183a4",
+    "/usr/lib/systemd/system/org.tizen.multi-assistant-service.path": "fda6ffc3fc7f201f3ca224c786951e5ef867d114d7a191ce4ae96985df420d3f",
+    "/usr/lib/systemd/system/org.tizen.multi-assistant-service.service": "bf762f9002f83536c6519221be2f35b5053a7786954e1a3d48737b63bfb19fbb",
+    "/usr/lib/systemd/system/org.tizen.voice-client.path": "948efd6dbbe0c4bd789b1005595efea45eb7ee56bbfc611e59c163f45e0058fa",
+    "/usr/lib/systemd/system/org.tizen.voice-client.service": "7ee1d0a884905bca2066b24519814236a6a3f38bd71307d8f7b894bc2c10b766",
+    "/usr/lib/systemd/system/org.tizen.voice-app.path": "5d8c7a3188c80779ce34d62d8a0d8c3ff5b28e04e9f4642777b9c2f9aee13edb",
+    "/usr/lib/systemd/system/org.tizen.voice-app.service": "e0296f8b4c2b4bb92f04b6bc2383ab1aaa1c7a7e323f0a51a29dd1b53cd38753",
+    "/usr/lib/systemd/system/com.samsung.tv.ondevice-voice.path": "6b3fde2d9993cb5bacc3414f66f69c36262d105ca3659c62e613b322a7a7977e",
+    "/usr/lib/systemd/system/com.samsung.tv.ondevice-voice.service": "2aa148f811d79bd61b0fb9e2e85796fa636a99b2f883f504ff39efd61ce0c912",
+    "/usr/lib/systemd/system/com.samsung.tv.wakeupless.path": "5d65a1d3c6e5554932af822be72d5f9aeff2a77f33fb962823a6b6f5614ea12c",
+    "/usr/lib/systemd/system/com.samsung.tv.wakeupless.service": "942ba89b9511f27584a9989629af99443afe9d95df6a93c3ad783625e05af9d4",
+    "/usr/lib/systemd/system/com.samsung.tv.bixby-prov.path": "656ef924a6a4ecb8546349ecc44c3b178c4f30b9eb52939c9d71cd05d9e3ebfd",
+    "/usr/lib/systemd/system/com.samsung.tv.bixby-prov.service": "afee1bde19e788ab76050c294f1ed5b949dd10766b4995772ba5741946a96ba3",
+    "/usr/lib/systemd/system/com.samsung.tv.voiceassistant-music.service": "1e7eebdc815885cf88343938edf31b847cabb6abbb42a71ad2e55fcf6b0afc47",
+    "/usr/lib/systemd/system/com.samsung.tv.hfpAgent.busname": "117c0f2dd82d9cbd948221bac669a1a49d80312f9d6efa5266edc626be590e48",
+    "/usr/lib/systemd/system/hfp-agent.service": "93fd6097e279c421a129f4a0ed68252a5f5cad6d8cb05648d92ed06a1537a1e0",
+    "/usr/lib/systemd/system/com.samsung.tv.passthru-service.path": "e33b43c96943b029ecd2cd0e3dc4757f0f0a292494f7472fad2b613d357b2650",
+    "/usr/lib/systemd/system/com.samsung.tv.passthru-service.service": "178e5b588d2cc110edf0e0c8679a8e055ae22e85ff0f6f4243f957f933f04af2",
+    "/opt/etc/parseinfo.sh": "c6369e7dec69408e176daa252d436acf6f8e265f560504d8bd831c8023c71d61",
+    "/usr/lib/systemd/system/AT-HUB.service": "b6829f0f7e95464178f92922e5fdca83bf0874df2e1bbb77d68db6892a5490b3",
+    "/opt/share/packages/com.samsung.tv.alexa-client.xml": "ffe0007f286a1b13e82c8b29175afe35e77732f75a6adf1263ce23afffb15e11",
+    "/opt/share/packages/com.samsung.tv.ambient-sound.xml": "ab2e540ff4b64cf9a9e0e791f754e8c15bdd40013044293806b2176576b85a00",
+    "/opt/share/packages/com.samsung.tv.aov-dashboard.xml": "9788720ff7e8843b1e1baf2e7e2ea399fb31bf2f6ba71b24aaaf98f5d41e0763",
+    "/usr/share/packages/com.samsung.tv.aov-service.xml": "81dcd85645e6a52be14c5fc431c5ac38fd6524edb2fe5408ac5537b902946273",
+    "/opt/share/packages/com.samsung.tv.bixby-context-client.xml": "b4795f5fb46a9fb9cd6177b6033ee07fd9774cdbf608d3bdc794d0c411cdb2d6",
+    "/opt/share/packages/com.samsung.tv.bixby-prov.xml": "84f956ad9993e674f200facd919500771fc38e23b7dd5e5145df219c0d8a1d5f",
+    "/opt/share/packages/com.samsung.tv.bixbycapsuleviewer.xml": "728ed6c5fc5bbe2e877f26e5f91377435923972bdef37ac9e0f2e8661a59706a",
+    "/opt/share/packages/com.samsung.tv.farfieldvoice.xml": "6ef3ec7de43553c543b8539b0782ade70340237d1480d97ed1d25f3f78d6bcf2",
+    "/opt/share/packages/com.samsung.tv.mybixby.xml": "030fb01d2e50f392db864beed65796347eed94e6d007cc0711c3ae4a9546b1e3",
+    "/opt/share/packages/com.samsung.tv.ondevice-voice.xml": "ad53f6dae8bc9ac0df53d9508944e93713438f3d6dbe3e561a8f1771479294c1",
+    "/opt/share/packages/com.samsung.tv.passthru-service.xml": "44f5ef3543a1c3ec26ff6f7722afe98c1bf1fd25ba2fffebc45fc2f3a70cb62d",
+    "/opt/share/packages/com.samsung.tv.vif.xml": "83744e4b539740ae0ab4b58cd670f8f3c4baca4a28e9e782d8d7f80919fd9597",
+    "/opt/share/packages/com.samsung.tv.voice-instant-app.xml": "303ed8f4614effc54e5ed5abd826cfe3ab403fc6a5cd3de29322d42d05442c1e",
+    "/opt/share/packages/com.samsung.tv.voiceassistant-music.xml": "5ad7bdb6107c104c7903dfb22c5ecfba8cf2a21d4604b06a27feda6d0c38e728",
+    "/opt/share/packages/com.samsung.tv.wakeup-engine-alexa.xml": "2d29616bc5553cff54fc4fa930a0aea8c4c09df4587a81c1c0085eb2ad8e8603",
+    "/opt/share/packages/com.samsung.tv.wakeup-engine-bixby.xml": "9ee8235be48a76676e3cea2b0a2dc8aed41ceea2f637da8697664ccdb6171712",
+    "/opt/share/packages/com.samsung.tv.wakeupless.xml": "a9a80424f63143f6c354edac713e3207d495c9cda8619004a7db21e7784687b6",
+    "/usr/share/packages/org.tizen.multi-assistant-service.xml": "df5b6288952823e4d4985589949b9c426f578c70c0c558c5758c9f074d61c04d",
+    "/opt/share/packages/org.tizen.voice-app.xml": "a6a21f1760d7c2758033e1d910fb879b8ae57a1d9e52d932cd1597d54aef3fcc",
+    "/opt/share/packages/org.tizen.voice-client.xml": "ee4b0594508a9f92f41e6b09b32431d31faf9427b6c3e3a4f009a378d5660ee5",
+    "/usr/share/packages/org.tizen.voice-onboarding.xml": "ef55f46d54112a70b6d6ac10cbe45c547f447bf2ea0b1c46f28ef0e63bb5731d",
+    "/usr/bin/dotnet-loader": "756a3796e1aec765a9cf7e5b1c0fcf00864205e70bd028c94e587a21a0a381c5",
+    "/usr/lib/systemd/system/wifi-presence.path": "03caae12e4fe516057da6d919d7e987953c991c5ad5add19e2a73697652bcd34",
+    "/usr/lib/systemd/system/wifi-presence.service": "a2f4f11950f547507675522bd92a90b2a56902906b66fd54a262a1a967baf2e7"
+  },
+  "validation_trial": {
+    "application_id": "org.tizen.voice-onboarding",
+    "journal": "/opt/usr/home/owner/share/samshush-native-trial-v1"
+  },
+  "startup_guards": [
+    [
+      "com.samsung.tv.farfieldvoice.service",
+      "/opt/usr/share/systemd/system/com.samsung.tv.farfieldvoice"
+    ],
+    [
+      "org.tizen.voice-client.service",
+      "/opt/usr/share/systemd/system/org.tizen.voice-client"
+    ],
+    [
+      "org.tizen.voice-app.service",
+      "/opt/usr/share/systemd/system/org.tizen.voice-app"
+    ],
+    [
+      "com.samsung.tv.ondevice-voice.service",
+      "/opt/usr/share/systemd/system/com.samsung.tv.ondevice-voice"
+    ],
+    [
+      "com.samsung.tv.wakeupless.service",
+      "/opt/usr/share/systemd/system/com.samsung.tv.wakeupless"
+    ],
+    [
+      "com.samsung.tv.bixby-prov.service",
+      "/opt/usr/share/systemd/system/com.samsung.tv.bixby-prov"
+    ],
+    [
+      "com.samsung.tv.passthru-service.service",
+      "/opt/usr/share/systemd/system/com.samsung.tv.passthru-service"
+    ]
+  ],
+  "verification_scope": "Exact model/build/architecture and live executable/manifest/unit hashes checked; single native app disable/launch-denial/restore trial passed. Verified 23 voice app blocks, seven guards, 21 voice masks, ambient-sound launch denial and two Wi-Fi presence masks. Startup installation and warm installed-path run passed. The owner reports the built-in microphone switch Off. Changed-boot persistence and retained-feature owner tests remain pending; complete microphone capture denial is not established.",
+  "managed_runtimes": [
+    "/usr/bin/dotnet-loader"
+  ],
+  "runtime_validated": true,
+  "persistence": "Native app flags and guards use persistent storage. The installed optional boot hook enrolls voice and Wi-Fi presence runtime masks. Current-boot installed-path run passed; a new kernel boot ID and fresh result/status checks are required to establish reboot persistence. Firmware-update survival is unverified."
+}

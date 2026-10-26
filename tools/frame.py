@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect and control the verified Frame Pro build through temporary root."""
+"""Inspect and control verified Samsung TV builds through temporary root."""
 
 import argparse
 import asyncio
@@ -23,12 +23,46 @@ import startup
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 ASSETS = HERE / "assets"
+PROFILES = {
+    "frame": HERE / "profile.json",
+    "s95c-2220": HERE / "profiles/s95c-2220.json",
+}
+ACTIVE_PROFILE = "frame"
 # Keep the pinned transport isolated from globally installed packages.
 sys.path.insert(0, str(HERE / "vendor"))
 
 
 def policy():
-    return json.loads((HERE / "profile.json").read_text())
+    return json.loads(PROFILES[ACTIVE_PROFILE].read_text())
+
+
+def device_identity(p):
+    if "device_identity" not in p:
+        return ""
+    identity = p["device_identity"]
+    return (
+        f"grep -Fxq {shlex.quote('BUILD_ID=' + p['build'])} /etc/os-release || exit 1\n"
+        f"grep -Fxq {shlex.quote('Model=' + identity['firmware_family'] + ';')} /etc/prd_info.ini || exit 1\n"
+        f"grep -Fxq {shlex.quote('Version=' + identity['software_version'] + ';')} /etc/prd_info.ini || exit 1\n"
+        f"[[ $(uname -m) == {shlex.quote(identity['architecture'])} ]] || exit 1\n"
+    )
+
+
+def preimages(p, paths):
+    if "preimages" not in p:
+        return ""
+    rows = "\n".join(p["preimages"][path] + "  " + path for path in sorted(set(paths)))
+    return "sha256sum -c <<'PREIMAGES' || exit 1\n" + rows + "\nPREIMAGES\n"
+
+
+def require_trial(p):
+    if "validation_trial" not in p:
+        return ""
+    state = p["validation_trial"]["journal"]
+    return (
+        f"[[ ! -L {state} && $(stat -c '%u:%a' {state}) == 0:700 && -f {state}/verified ]] || exit 1\n"
+        f"grep -Fxq {shlex.quote(p['build'])} {state}/verified || exit 1\n"
+    )
 
 
 def verify_files():
@@ -66,6 +100,15 @@ def render(action, scope, *, certificate_journal=False, unit_group=None):
             raise ValueError("No assessed units in this group")
     units = "\n".join(selected_units)
     script = device_scripts.RUNTIME
+    if "device_identity" in p and action == "apply":
+        if scope != "voice" and not (scope == "services" and unit_group is not None):
+            raise ValueError("This profile requires voice or an assessed service group")
+        script = (
+            device_identity(p)
+            + require_trial(p)
+            + preimages(p, ["/usr/lib/systemd/system/" + u for u in selected_units])
+            + script
+        )
     if certificate_journal:
         script = script.replace(
             "STATE=/run/frame-runtime-v1", "STATE=/run/frame-certificates-v1"
@@ -78,6 +121,7 @@ def render(action, scope, *, certificate_journal=False, unit_group=None):
         "ACTION": action,
         "SCOPE": scope,
         "BUILD": p["build"],
+        "ARCH": p.get("device_identity", {}).get("architecture", "aarch64"),
         "CERTS": certs,
         "UNITS": units,
     }.items():
@@ -90,7 +134,7 @@ def render(action, scope, *, certificate_journal=False, unit_group=None):
     return f"printf %s {encoded} | base64 -d | nsenter --mount=/proc/1/ns/mnt /bin/bash"
 
 
-def render_apps(action, *, sound_sensor=False, group=None):
+def render_apps(action, *, sound_sensor=False, group=None, trial=False):
     """Preserve the deployed native-app journal and exact owner context."""
     if action not in ("apply", "status", "restore", "verify"):
         raise ValueError("Unknown app action")
@@ -104,18 +148,46 @@ def render_apps(action, *, sound_sensor=False, group=None):
     script = device_scripts.APP_CONTROL.replace(
         "@@MODE@@", "status" if action == "verify" else action
     )
+    p = policy()
+    script = script.replace("@@BUILD@@", p["build"]).replace(
+        "@@PROCESS_IDENTITY@@", device_scripts.PROCESS_IDENTITY
+    )
     application_ids = (
         ["com.samsung.tv.ambient-sound"]
         if sound_sensor
-        else policy()["voice_privacy"]["application_ids"]
+        else p["voice_privacy"]["application_ids"]
     )
+    if trial:
+        application_ids = [p["validation_trial"]["application_id"]]
     if group is not None:
         if sound_sensor:
             raise ValueError("Sound sensor cannot share an optional-app group")
         application_ids = policy()["optional_controls"][group]["application_ids"]
         if not application_ids:
             raise ValueError("No assessed apps in this group")
-    script = script.replace("@@APPS@@", "\n".join(application_ids))
+    script = script.replace("@@APPS@@", "\n".join(application_ids)).replace(
+        "@@TRIAL_PREFLIGHT@@",
+        "[[ $pid == 0 ]] || fail 'Trial app must be idle'" if trial else "",
+    )
+    if "device_identity" in p:
+        guards = device_identity(p)
+        if action == "apply":
+            if not trial:
+                guards += require_trial(p)
+            paths = []
+            paths.extend(p.get("managed_runtimes", []))
+            for app in application_ids:
+                entry = p["applications"][app]
+                paths.extend([entry["executable"], entry["manifest"]])
+                guards += (
+                    "[[ $(sqlite3 -readonly /opt/dbspace/.pkgmgr_parser.db "
+                    + shlex.quote(
+                        f"SELECT app_exec FROM package_app_info WHERE app_id='{app}';"
+                    )
+                    + f") == {shlex.quote(entry['executable'])} ]] || exit 1\n"
+                )
+            guards += preimages(p, paths)
+        script = guards + script
     if action == "verify":
         start = script.index("if [[ $MODE == status")
         end = script.index('mkdir -m 700 "$LOCK"')
@@ -128,8 +200,49 @@ def render_apps(action, *, sound_sensor=False, group=None):
         result = result.replace("frame-voice-apps-v2", "frame-sound-sensor-v1")
     if group is not None:
         result = result.replace("frame-voice-apps-v2", f"frame-apps-{group}-v1")
+    if trial:
+        result = result.replace(
+            "/opt/usr/home/owner/share/frame-voice-apps-v2",
+            p["validation_trial"]["journal"],
+        )
     result = result.replace("25 persistent", f"{len(application_ids)} persistent")
     return result
+
+
+def render_trial():
+    p = policy()
+    if "validation_trial" not in p:
+        raise ValueError("This profile has no native compatibility trial")
+    trial = p["validation_trial"]
+    app = trial["application_id"]
+    state = trial["journal"]
+    proof = (
+        device_identity(p)
+        + f"""
+[[ ! -L {state} && $(stat -c '%u:%a' {state}) == 0:700 && -f {state}/restored.tsv && ! -e {state}/complete ]] || exit 1
+[[ $(sqlite3 -readonly /opt/dbspace/.pkgmgr_parser.db "SELECT app_disable FROM package_app_info WHERE app_id='{app}';") == false ]] || exit 1
+/usr/bin/dotnet "$stage/OwnerExec.dll" /usr/bin/pkginfo --app {app} | grep -Fxq 'Enabled: 1'
+[[ $(app_launcher -r {app} -u 5001) == 'result: not running' ]] || exit 1
+printf '%s\\n' {shlex.quote(p["build"])} > {state}/verified
+sync
+echo 'NATIVE TRIAL PASSED: disable, launch denial, original flags restored, app idle'
+"""
+    )
+    return (
+        render_apps("apply", trial=True)
+        + render_apps("restore", trial=True)
+        + device_scripts.APP_PREFIX.replace(
+            "@@OWNER_DLL@@",
+            base64.b64encode((ASSETS / "payloads/OwnerExec.dll").read_bytes()).decode(),
+        ).replace(
+            "@@OWNER_CONFIG@@",
+            base64.b64encode(
+                (ASSETS / "payloads/OwnerExec.runtimeconfig.json").read_bytes()
+            ).decode(),
+        )
+        + proof
+        + "OWNER\n"
+    )
 
 
 def check_result(result):
@@ -149,7 +262,9 @@ def check_result(result):
 
 
 def main():
+    global ACTIVE_PROFILE
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", choices=PROFILES, default="frame")
     parser.add_argument(
         "--tv",
         type=ipaddress.IPv4Address,
@@ -176,6 +291,10 @@ def main():
         help="Acquire temporary root; inspect voice processes and capture metadata without recording audio",
     )
     sub.add_parser(
+        "compatibility-audit",
+        help="Read firmware, voice registrations, activation files and startup preimages",
+    )
+    sub.add_parser(
         "debloat-audit", help="Read optional-app, telemetry and detector dependencies"
     )
     boot = sub.add_parser(
@@ -188,6 +307,10 @@ def main():
     sub.add_parser(
         "privacy-audit",
         help="Inspect SmartThings sound sensing, Wi-Fi presence and ACR metadata",
+    )
+    sub.add_parser(
+        "network-audit",
+        help="Read Wi-Fi power, Ethernet state and presence dependencies",
     )
     sub.add_parser(
         "status", help="Acquire temporary root; check recorded overlays and masks"
@@ -210,7 +333,9 @@ def main():
         "apps",
         help="Persistent native app flags; restore also removes recorded startup guards",
     )
-    apps.add_argument("operation", choices=("apply", "status", "verify", "restore"))
+    apps.add_argument(
+        "operation", choices=("apply", "status", "verify", "restore", "trial")
+    )
     apps.add_argument(
         "--group",
         choices=[
@@ -239,9 +364,19 @@ def main():
     sensor.add_argument("operation", choices=("apply", "status", "verify", "restore"))
     sub.add_parser(
         "guards-apply",
-        help="Install eight vendor startup guards after a completed app apply",
+        help="Install the profile's vendor startup guards after a completed app apply",
     )
     args = parser.parse_args()
+    ACTIVE_PROFILE = args.profile
+    p = policy()
+    if args.profile != "frame":
+        if args.action in ("certificates", "auto-update") or (
+            getattr(args, "group", None)
+            and (args.action != "services" or args.group not in p["optional_controls"])
+        ):
+            parser.error("Optional controls have not been validated for this profile")
+        if args.action == "apply" and args.scope != "voice":
+            parser.error("Only voice runtime controls are supported by this profile")
     if args.action == "plan":
         print(json.dumps(policy(), indent=2))
         return 0
@@ -279,6 +414,18 @@ def main():
     if not shutil.which("openssl"):
         raise ValueError("OpenSSL is required")
     client = SdbClient(find_sdb(), str(args.tv))
+    if args.profile != "frame":
+        client.connect()
+        client.require_device()
+        devices = client.run(("devices",), check=True).stdout
+        if not any(
+            len(fields := line.split()) >= 3
+            and fields[0] == client.serial
+            and fields[1] == "device"
+            and fields[2] == p["model"]
+            for line in devices.splitlines()
+        ):
+            raise ValueError("Connected TV model does not match the selected profile")
     args.logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     report = args.logs / (
         datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -294,6 +441,7 @@ def main():
     staged = False
     evidence = {
         "action": args.action,
+        "profile": args.profile,
         "operation": getattr(args, "operation", None),
         "group": getattr(args, "group", None),
         "tv": str(args.tv),
@@ -329,6 +477,17 @@ def main():
                     path = Path(directory) / "startup.tar.gz"
                     path.write_bytes(package)
                     client.push(path, stage / path.name)
+        elif args.action == "compatibility-audit":
+            script = device_scripts.COMPATIBILITY_AUDIT.replace(
+                "@@APPS@@",
+                ",".join(
+                    "'" + app + "'"
+                    for app in policy()["voice_privacy"]["application_ids"]
+                    + ["com.samsung.tv.ambient-sound"]
+                ),
+            ).replace(
+                "@@UNITS@@", "\n".join(policy()["voice_privacy"]["systemd_units"])
+            )
         elif args.action == "voice-audit":
             script = device_scripts.VOICE_AUDIT
         elif args.action == "debloat-audit":
@@ -341,6 +500,8 @@ def main():
             script = device_scripts.PRIVACY_AUDIT.replace(
                 "@@BUILD@@", policy()["build"]
             )
+        elif args.action == "network-audit":
+            script = device_scripts.NETWORK_AUDIT.replace("@@BUILD@@", p["build"])
         elif args.action == "auto-update":
             script = device_scripts.AUTO_UPDATE.replace(
                 "@@BUILD@@", policy()["build"]
@@ -349,6 +510,8 @@ def main():
             script = render(args.operation, "services", unit_group=args.group)
         elif args.action == "certificates":
             script = render(args.operation, "certificates", certificate_journal=True)
+        elif args.action == "apps" and args.operation == "trial":
+            script = render_trial()
         elif args.action in ("apps", "sound-sensor"):
             script = render_apps(
                 args.operation,
@@ -357,6 +520,15 @@ def main():
             )
         elif args.action == "guards-apply":
             script = device_scripts.STARTUP_GUARDS
+            if "startup_guards" in p:
+                start = script.index("com.samsung.tv.farfieldvoice.service\t")
+                end = script.index("\nROWS", start)
+                script = (
+                    script[:start]
+                    + "\n".join("\t".join(row) for row in p["startup_guards"])
+                    + script[end:]
+                )
+                script = device_identity(p) + require_trial(p) + script
         else:
             script = render(args.action, getattr(args, "scope", "none"))
         if (args.action == "apply" and args.scope in ("certificates", "both")) or (
@@ -383,6 +555,7 @@ def main():
             probe(
                 str(args.tv),
                 callback_host=str(args.callback_host) if args.callback_host else None,
+                accept_timeout=180,
                 command_timeout=180,
                 commands=(wrapped(script),),
                 payloads=payloads,

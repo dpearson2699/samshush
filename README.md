@@ -1,8 +1,9 @@
 # Samshush
 
 Root your Samsung TV and disable unwanted voice, advertising and background
-services. Changes are reversible. It currently supports the
-**Frame Pro QN65LS03FWFXZA running firmware 1301.0**.
+services. Changes are reversible. Verified profiles cover the **Frame Pro
+QN65LS03FWFXZA on firmware 1301.0** and **S95C QN55S95CAFXZA on firmware 2220.4**.
+Support is limited to the exact internal builds checked by each profile.
 
 ## How it works
 
@@ -21,6 +22,13 @@ App blocks use persistent settings. An optional startup hook reapplies service
 masks and certificate changes in the background, without your computer. Remove it
 with `startup remove` before restoring those controls. Firmware updates can reset
 the changes or patch the root exploit, so check compatibility before updating.
+
+The S95C profile (`--profile s95c-2220`) supports 23 voice app blocks, seven
+startup guards, 21 voice units, the separate ambient-sound app and optional
+Wi-Fi presence masks. Other optional controls remain unsupported on that profile.
+Its native disable/restore trial and launch-denial checks passed; boot-hook
+installation and reboot persistence must be verified separately on the target TV.
+The default `frame` profile retains its existing controls.
 
 ## Usage
 
@@ -58,13 +66,14 @@ need voice assistants or sound monitoring.
 
 | Service or feature | Recommendation | What we found and why |
 | --- | --- | --- |
+| TV's physical microphone switch | Set to Off | Samsung's [S95C-family manual](https://www.samsung.com/ca/support/model/QN55S95CAFXZC/) places the switch on the bottom edge; location varies. It disables the TV microphone's voice and sound features. The Smart Remote has a separate microphone. |
 | Bixby, Alexa and voice recognition | Disable | Separate apps handle assistants, speech recognition and wake words. Native app blocks prevent these apps from launching. |
 | Always-on voice and far-field listening | Disable | Dedicated services support voice activation, including standby paths. Disabling the visible assistant alone does not cover them. |
 | Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Disable for microphone privacy | These add microphone inputs beyond the TV’s built-in mic. Blocking them can remove hands-free features. Keep normal Bluetooth and audio output services. |
 | SmartThings and SmartThings Find | Disable unused integrations | Samshush blocks the selected client, plugin, hub and Find apps and the IoT hub startup paths. The shared sensor service stays enabled for light sync. |
 | SmartThings Sound Sensor / Pet Care | Turn sound sensing off | SmartThings can trigger events from sound, including in standby. The shared sensor service also handles light sync, so keep it enabled. |
 | Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode still works. |
-| Wi-Fi presence | Disable if unused | Samshush blocks the LAN-presence service and its startup path. Normal Wi-Fi and networking stay enabled. |
+| Wi-Fi presence | Disable if unused | Samshush blocks the presence service and its startup path separately from radio power. On the Ethernet-connected S95C, Wi-Fi was already off while presence was still running; these masks preserve Ethernet and the existing radio setting. |
 | Viewing Information Services | Turn optional collection off | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
 | Content analysis and iACR | Keep enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
 | Screen-based game/app recognition | Disable if unused | The detector requests 960×540 frames at a configured 2.5-second interval, then feeds a 64×64 image into an INT8 model. Samshush blocks the recognition launcher and UI-image detector. |

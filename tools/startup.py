@@ -252,15 +252,16 @@ def bundle(policy, render, assets):
         "launch": substitute(LAUNCH, policy["build"]).encode(),
         "worker": substitute(COMMON + WORKER, policy["build"]).encode(),
     }
-    candidates = [
-        ("voice", "/run/frame-runtime-v1", "voice", {}),
-        (
-            "certificates",
-            "/run/frame-certificates-v1",
-            "certificates",
-            {"certificate_journal": True},
-        ),
-    ]
+    candidates = [("voice", "/run/frame-runtime-v1", "voice", {})]
+    if policy["certificates"]:
+        candidates.append(
+            (
+                "certificates",
+                "/run/frame-certificates-v1",
+                "certificates",
+                {"certificate_journal": True},
+            )
+        )
     candidates += [
         (name, f"/run/frame-services-{name}-v1", "services", {"unit_group": name})
         for name, entry in policy["optional_controls"].items()

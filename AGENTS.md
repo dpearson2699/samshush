@@ -36,10 +36,14 @@ separate commands and journals. Apply them only within the owner's requested sco
 4. Use existing official SDB and OpenSSL installations before installing duplicates.
    Run `uv sync --project tools --locked`, then `frame.py doctor`. SDB resolves from
    `--sdb`, `SDB`, the local cached SDK, or `PATH`. `doctor` never contacts the TV.
-5. Inspect the access method and side effects before invoking it. The supplied
-   profile and payloads have evidence only for QN65LS03FWFXZA, Tizen 9, build
-   `T-RSMFAKUC-0090-REL-202607141953`. Do not bypass build checks or merely replace a
-   build string to support another TV. The app path also requires owner UID 5001.
+5. Inspect the access method and side effects before invoking it. The default
+   profile covers QN65LS03FWFXZA, Tizen 9, build
+   `T-RSMFAKUC-0090-REL-202607141953`. The explicit `--profile s95c-2220` covers
+   QN55S95CAFXZA, Tizen 9, ARMv7, build `T-PTMCAKUC-0090-REL-202603190200`
+   (menu firmware 2220.4). Its live executable/manifest/unit preimages and native
+   disable/readback/restore trial were validated separately. Do not bypass build
+   checks or merely replace a build string to support another TV. The app path
+   also requires owner UID 5001.
    All device commands acquire temporary root, including inspect/status/audit.
 6. Keep official downloads immutable. Record source URL, retrieval date, size and
    SHA-256. Downloaded firmware may differ from the installed build. Extracted or
@@ -60,6 +64,17 @@ uv run --project tools tools/frame.py --tv 192.0.2.10 --callback-host 192.0.2.20
 `frame.py --help` is the command reference. `--logs` defaults to `.local/reports`;
 reports include completion, command results and cleanup evidence. Protect raw logs
 and device identifiers; do not publish them in a Gist or commit them.
+
+All S95C device and recovery commands require `--profile s95c-2220` before the
+command. That profile supports 23 voice apps, seven guards, 21 voice units,
+ambient-sound and the independently assessed two-unit `wifi-presence` group.
+Other optional groups, certificates, Auto Update and blanket service scopes are
+rejected. Application requires the successful matching trial journal plus pinned
+preimages. The S95C's AOV dashboard uses `dotnet-loader`; process checks require
+the exact DLL argument and known runtime, not a name substring. The separate
+read-only `compatibility-audit` and `network-audit` commands gather registrations,
+preimages, dependencies, ConnMan radio power and Ethernet state without recording
+audio or packets. Do not infer that radio-off stops Wi-Fi presence.
 
 | Command | Effect and limits |
 | --- | --- |
@@ -174,6 +189,24 @@ user-facing README synchronized when behavior changes.
   temporary cache experiment stalled PID 1 and was reverted.
 
 ## Prove the outcome
+
+The deployment history below describes the Frame profile. It is not evidence of
+S95C retained features or reboot persistence. For the S95C session, use the current
+private reports: native voice and ambient-sound launch denial, seven guards,
+21 voice masks and two Wi-Fi presence masks have passed readback. Wi-Fi radio
+power was already false and Ethernet was up. The owner uses the original One
+Connect box and remote, no soundbar. Samsung's manual linked from the Canadian
+QN55S95CAF support page documents a bottom-edge physical microphone switch for
+S9*C; ask the owner to confirm Off. Its position varies and the remote mic is
+separate. Sound detection keys were already off and were left untouched.
+Automatic boot reapplication was explicitly authorized. Installation and its
+current-boot installed-path run passed for voice and Wi-Fi presence. Require a
+changed boot ID and fresh successful result/status evidence before claiming
+reboot persistence on this S95C. The final metadata audit found an ACR-owned ALSA
+capture endpoint in XRUN state; its room-microphone source is not established.
+Retain ACR for playback; do not call this complete microphone capture denial.
+This TV's `readlink` accepts one operand, so the descriptor audit batches `ls`
+symlink metadata instead. No audio or packets were recorded.
 
 Check native flags, exact executable identity/process absence, service/path/socket/
 bus/timer activation, direct app launches and applicable capture controls separately.
