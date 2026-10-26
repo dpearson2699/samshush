@@ -123,6 +123,64 @@ class HostTests(unittest.TestCase):
             check=True,
         )
 
+    def app_functions(self, root):
+        script = frame.render_apps("apply")
+        start = script.index("flag() {")
+        end = script.index("verify_flags() {")
+        return script[start:end].replace("/proc/", str(root / "proc") + "/")
+
+    def test_managed_process_requires_exact_dll_argument(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proc = root / "proc" / "123"
+            proc.mkdir(parents=True)
+            expected = "/opt/usr/apps/voice/bin/Voice.dll"
+            for executable, argument, accepted in (
+                (expected, expected, True),
+                ("/usr/bin/dotnet-loader", expected, True),
+                ("/usr/bin/dotnet-launcher-inhouse", expected, True),
+                ("/usr/bin/dotnet-loader", expected + ".other", False),
+                ("/usr/bin/dotnet-loader", "/different/Voice.dll", False),
+                ("/unrelated/program", expected, False),
+            ):
+                with self.subTest(executable=executable, argument=argument):
+                    (proc / "exe").unlink(missing_ok=True)
+                    (proc / "exe").symlink_to(executable)
+                    (proc / "cmdline").write_bytes(argument.encode() + b"\0")
+                    result = subprocess.run(
+                        ["/bin/bash"],
+                        input=self.app_functions(root)
+                        + f"matches_process 123 {expected}\n",
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(result.returncode == 0, accepted, result.stderr)
+
+    def test_absence_check_finds_surviving_managed_apps(self):
+        expected = "/opt/usr/apps/example/bin/Example.dll"
+        for runtime, survives in (
+            ("/usr/bin/dotnet-launcher-inhouse", True),
+            ("/usr/bin/dotnet-loader", True),
+            ("/unrelated/program", False),
+        ):
+            with self.subTest(runtime=runtime), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                proc = root / "proc" / "123"
+                proc.mkdir(parents=True)
+                (proc / "exe").symlink_to(runtime)
+                (proc / "cmdline").write_bytes(expected.encode() + b"\0")
+                (root / "before.tsv").write_text(f"example\tfalse\t123\t{expected}\n")
+                result = subprocess.run(
+                    ["/bin/bash"],
+                    input=f"STATE={root}\nstage={root}\n"
+                    + self.app_functions(root)
+                    + "verify_absent\n",
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode != 0, survives, result.stdout)
+                self.assertEqual("SURVIVING MANAGED APP" in result.stdout, survives)
+
     def test_privacy_audit_has_valid_shell_and_requires_matching_build(self):
         script = frame.device_scripts.PRIVACY_AUDIT.replace(
             "@@BUILD@@", frame.policy()["build"]
