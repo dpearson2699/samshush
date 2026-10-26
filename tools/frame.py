@@ -263,6 +263,10 @@ def check_result(result):
 
 def main():
     global ACTIVE_PROFILE
+    # Group choices depend on the profile, so read it before building the parser.
+    early = argparse.ArgumentParser(add_help=False)
+    early.add_argument("--profile", choices=PROFILES, default="frame")
+    ACTIVE_PROFILE = early.parse_known_args()[0].profile
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=PROFILES, default="frame")
     parser.add_argument(

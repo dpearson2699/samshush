@@ -91,6 +91,15 @@
         "wifi-presence.service"
       ],
       "reason": "Owner uses Ethernet. Live dependency inventory found no stop propagation into networking or playback; radio power is separately already false."
+    },
+    "shell-preload": {
+      "application_ids": [],
+      "systemd_units": [
+        "com.samsung.tv.preview-updater.service",
+        "com.samsung.tv.multiscreen.service",
+        "org.tizen.browser.service"
+      ],
+      "reason": "Boot-time preloads of Samsung's home preview updater, Multi View and the browser. Each unit only starts its app in the background; the apps stay launchable on demand. Live dependency inventory found only Wants from boot targets, no Requires, BindsTo or PartOf."
     }
   },
   "applications": {
@@ -192,6 +201,9 @@
     }
   },
   "preimages": {
+    "/usr/lib/systemd/system/com.samsung.tv.multiscreen.service": "656dac8456bfdddfa05c05931687d7d6811fc546909290fb1a932bea935f4319",
+    "/usr/lib/systemd/system/com.samsung.tv.preview-updater.service": "b8b173aae1538ba768a53bef243b117af5695951991823187b50eb2b9dfcf37c",
+    "/usr/lib/systemd/system/org.tizen.browser.service": "cce121f6b37fc9e613f14b2bc78e3e23e7c18cb7522a3533d7ba90126756db85",
     "/opt/usr/apps/com.samsung.tv.alexa-client/bin/alexa-client": "d35b993c7bf32c743bc23808f1db21981266552a0eb0a85c9a3c3f66b9239964",
     "/opt/usr/apps/com.samsung.tv.alexa-client/bin/alexa-fullscreen-app": "143e9512c4a3e221c73c2c68c14087d18bcf1ce2198e59a8056d8b566c07b753",
     "/opt/usr/apps/com.samsung.tv.ambient-sound/bin/ambient-sound": "5baafd0412494dd9517455d99016060377cbbf07b2c6d3cf86a87cf7732be3c7",

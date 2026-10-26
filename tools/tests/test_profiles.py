@@ -178,10 +178,13 @@ class ProfileTests(unittest.TestCase):
             with tarfile.open(fileobj=io.BytesIO(package)) as archive:
                 candidates = archive.extractfile("candidates").read().decode()
                 script = archive.extractfile("wifi-presence.apply").read().decode()
-            self.assertEqual(len(candidates.splitlines()), 2)
+            self.assertEqual(len(candidates.splitlines()), 3)
             self.assertIn("voice\t/run/frame-runtime-v1\tvoice", candidates)
             self.assertIn(
                 "wifi-presence\t/run/frame-services-wifi-presence-v1", candidates
+            )
+            self.assertIn(
+                "shell-preload\t/run/frame-services-shell-preload-v1", candidates
             )
             self.assertNotIn("certificates", candidates)
             decoded = frame.base64.b64decode(script.split()[2]).decode()
@@ -190,6 +193,44 @@ class ProfileTests(unittest.TestCase):
                 decoded,
             )
             self.assertIn("STATE=/run/frame-services-wifi-presence-v1", decoded)
+            subprocess.run(["/bin/bash", "-n"], input=decoded, text=True, check=True)
+
+    def test_service_groups_come_from_the_selected_profile(self):
+        def run(profile, group):
+            return subprocess.run(
+                [
+                    sys.executable,
+                    str(frame.HERE / "frame.py"),
+                    "--profile",
+                    profile,
+                    "services",
+                    group,
+                    "status",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+        accepted = run("s95c-2220", "shell-preload")
+        self.assertNotIn("invalid choice", accepted.stderr)
+        self.assertIn("--tv is required", accepted.stderr)
+        self.assertIn("invalid choice", run("frame", "shell-preload").stderr)
+
+    def test_s95c_shell_preload_pins_unit_preimages(self):
+        with patch.object(frame, "ACTIVE_PROFILE", "s95c-2220"):
+            units = frame.policy()["optional_controls"]["shell-preload"][
+                "systemd_units"
+            ]
+            decoded = frame.base64.b64decode(
+                frame.render("apply", "services", unit_group="shell-preload").split()[2]
+            ).decode()
+            for unit in units:
+                self.assertIn(
+                    frame.policy()["preimages"]["/usr/lib/systemd/system/" + unit],
+                    decoded,
+                )
+            self.assertIn("STATE=/run/frame-services-shell-preload-v1", decoded)
+            self.assertNotIn("org.tizen.menu.service", decoded)
             subprocess.run(["/bin/bash", "-n"], input=decoded, text=True, check=True)
 
 
