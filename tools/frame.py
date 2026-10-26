@@ -375,8 +375,7 @@ def main():
     p = policy()
     if args.profile != "frame":
         if args.action in ("certificates", "auto-update") or (
-            getattr(args, "group", None)
-            and (args.action != "services" or args.group not in p["optional_controls"])
+            getattr(args, "group", None) and args.group not in p["optional_controls"]
         ):
             parser.error("Optional controls have not been validated for this profile")
         if args.action == "apply" and args.scope != "voice":

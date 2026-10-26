@@ -25,7 +25,8 @@ the changes or patch the root exploit, so check compatibility before updating.
 
 The S95C profile (`--profile s95c-2220`) supports 23 voice app blocks, seven
 startup guards, 21 voice units, the separate ambient-sound app and optional
-Wi-Fi presence and Samsung home preload masks. Other optional controls remain
+Wi-Fi presence and Samsung home preload masks, and the Art app group. Other
+optional controls remain
 unsupported on that profile. Its native disable/restore trial, launch-denial checks
 and boot-hook reapplication after a physical power cycle passed on one TV.
 The default `frame` profile retains its existing controls.
@@ -75,6 +76,7 @@ need voice assistants or sound monitoring.
 | Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode still works. |
 | Wi-Fi presence | Disable if unused | Samshush blocks the presence service and its startup path separately from radio power. On the Ethernet-connected S95C, Wi-Fi was already off while presence was still running; these masks preserve Ethernet and the existing radio setting. |
 | Samsung home preloads (S95C) | Stop them if you use another launcher | At every boot Samsung starts its home preview updater, Multi View and the browser in the background. Samshush masks those three preload units, so each app starts only when you open it, at the cost of a slower first launch. |
+| Art app on TVs without Art Mode (S95C) | Disable it | The S95C has no Art Mode, but Samsung still starts its Art app at every boot to sync art from Samsung's server, and the Art app then starts the home screen's Art tab. Samshush disables both. Ambient Mode is a separate app and keeps working. |
 | Viewing Information Services | Turn optional collection off | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
 | Content analysis and iACR | Keep enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
 | Screen-based game/app recognition | Disable if unused | The detector requests 960×540 frames at a configured 2.5-second interval, then feeds a 64×64 image into an INT8 model. Samshush blocks the recognition launcher and UI-image detector. |

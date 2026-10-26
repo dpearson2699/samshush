@@ -406,12 +406,15 @@ echo 'COMPATIBILITY AUDIT COMPLETE; no privacy controls changed'
 """
 
 
-PROCESS_IDENTITY = r"""matches_process() {
+PROCESS_IDENTITY = r"""managed_runtime() {
+ case "$1" in /usr/bin/dotnet-loader|/usr/bin/dotnet-launcher-inhouse|*/dotnet|*/apphost|*/CoreRuntime*) return 0;; esac
+ return 1
+}
+matches_process() {
  local pid=$1 expected=$2 actual argument
  actual=$(readlink "/proc/$pid/exe" 2>/dev/null) || return 1
  [[ $actual == "$expected" ]] && return 0
- [[ $expected == *.dll ]] || return 1
- case "$actual" in /usr/bin/dotnet-loader|*/dotnet|*/apphost|*/CoreRuntime*) ;; *) return 1;; esac
+ [[ $expected == *.dll ]] && managed_runtime "$actual" || return 1
  while IFS= read -r -d '' argument; do
   [[ $argument == "$expected" ]] && return 0
  done < "/proc/$pid/cmdline"
@@ -460,12 +463,10 @@ verify_absent() {
   exe=$(readlink "$proc/exe" 2>/dev/null) || continue
   if grep -Fxq -- "$exe" "$stage/expected-paths"; then
    echo "SURVIVING PROCESS ${proc##*/} $exe"; found=1
-  else
-   case "$exe" in /usr/bin/dotnet-loader|*/dotnet|*/apphost|*/CoreRuntime*)
-    while IFS= read -r -d '' argument; do
-     if grep -Fxq -- "$argument" "$stage/expected-paths"; then echo "SURVIVING MANAGED APP ${proc##*/} $argument"; found=1; fi
-    done < "$proc/cmdline";;
-   esac
+  elif managed_runtime "$exe"; then
+   while IFS= read -r -d '' argument; do
+    if grep -Fxq -- "$argument" "$stage/expected-paths"; then echo "SURVIVING MANAGED APP ${proc##*/} $argument"; found=1; fi
+   done < "$proc/cmdline"
   fi
  done
  [[ $found == 0 ]]

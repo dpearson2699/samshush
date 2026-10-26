@@ -100,6 +100,14 @@
         "org.tizen.browser.service"
       ],
       "reason": "Boot-time preloads of Samsung's home preview updater, Multi View and the browser. Each unit only starts its app in the background; the apps stay launchable on demand. Live dependency inventory found only Wants from boot targets, no Requires, BindsTo or PartOf."
+    },
+    "art": {
+      "application_ids": [
+        "org.tizen.art-app",
+        "com.samsung.tv.home.art"
+      ],
+      "systemd_units": [],
+      "reason": "The S95C has no Art Mode and its homeui.artgallery_support flag is false, yet art_start.sh launches ArtApp in the background at every boot to sync art from Samsung's server, and ArtApp then starts Samsung home's Art tab. Neither manifest exposes an app control; the only other package naming them is the Samsung home Art category plugin. Ambient Mode is the separate ambient-support app and stays enabled."
     }
   },
   "applications": {
@@ -198,6 +206,14 @@
     "org.tizen.voice-onboarding": {
       "executable": "/usr/apps/org.tizen.voice-onboarding/bin/voice-onboarding",
       "manifest": "/usr/share/packages/org.tizen.voice-onboarding.xml"
+    },
+    "org.tizen.art-app": {
+      "executable": "/opt/usr/apps/org.tizen.art-app/bin/ArtApp.dll",
+      "manifest": "/opt/share/packages/org.tizen.art-app.xml"
+    },
+    "com.samsung.tv.home.art": {
+      "executable": "/opt/usr/apps/com.samsung.tv.home.art/bin/HomeArt.dll",
+      "manifest": "/opt/share/packages/com.samsung.tv.home.art.xml"
     }
   },
   "preimages": {
@@ -273,7 +289,12 @@
     "/usr/share/packages/org.tizen.voice-onboarding.xml": "ef55f46d54112a70b6d6ac10cbe45c547f447bf2ea0b1c46f28ef0e63bb5731d",
     "/usr/bin/dotnet-loader": "756a3796e1aec765a9cf7e5b1c0fcf00864205e70bd028c94e587a21a0a381c5",
     "/usr/lib/systemd/system/wifi-presence.path": "03caae12e4fe516057da6d919d7e987953c991c5ad5add19e2a73697652bcd34",
-    "/usr/lib/systemd/system/wifi-presence.service": "a2f4f11950f547507675522bd92a90b2a56902906b66fd54a262a1a967baf2e7"
+    "/usr/lib/systemd/system/wifi-presence.service": "a2f4f11950f547507675522bd92a90b2a56902906b66fd54a262a1a967baf2e7",
+    "/opt/usr/apps/org.tizen.art-app/bin/ArtApp.dll": "a68a0a4847c1b3ced55e7860a0e5b306f47faccc2663e6a062ad27bce696a83b",
+    "/opt/share/packages/org.tizen.art-app.xml": "be9d59c1d95da2f59ad6465745c1ab91e77eef44e7d96cc9dfc87d2369931319",
+    "/opt/usr/apps/com.samsung.tv.home.art/bin/HomeArt.dll": "81c698bc3292eb031e3af3e95b1a8b0a1f416a2c31b21c2a72ce4cf316524e4e",
+    "/opt/share/packages/com.samsung.tv.home.art.xml": "a89665585181927fce8a04d3cec5de0c074fbe52b5182d1d5a30a9aad87daf44",
+    "/usr/bin/dotnet-launcher-inhouse": "3186666daae073ec8528ff277b71ea071f71e8a30fa58126b4db6494104e55cf"
   },
   "validation_trial": {
     "application_id": "org.tizen.voice-onboarding",
@@ -309,9 +330,10 @@
       "/opt/usr/share/systemd/system/com.samsung.tv.passthru-service"
     ]
   ],
-  "verification_scope": "Exact model/build/architecture and live executable/manifest/unit hashes checked; single native app disable/launch-denial/restore trial passed. Verified 23 voice app blocks, seven guards, 21 voice masks, ambient-sound launch denial, two Wi-Fi presence masks and three shell-preload masks. After a physical power cycle with a new kernel boot ID, the startup worker reapplied voice, Wi-Fi presence and shell-preload and every status check passed before any host apply. The owner reports the built-in microphone switch Off. Retained-feature owner tests remain pending; complete microphone capture denial is not established.",
+  "verification_scope": "Exact model/build/architecture and live executable/manifest/unit hashes checked; single native app disable/launch-denial/restore trial passed. Verified 23 voice app blocks, seven guards, 21 voice masks, ambient-sound launch denial, two Wi-Fi presence masks, three shell-preload masks and the art app group (2 apps disabled, processes absent, launches denied; cold boot not yet re-verified). After a physical power cycle with a new kernel boot ID, the startup worker reapplied voice, Wi-Fi presence and shell-preload and every status check passed before any host apply. The owner reports the built-in microphone switch Off. Retained-feature owner tests remain pending; complete microphone capture denial is not established.",
   "managed_runtimes": [
-    "/usr/bin/dotnet-loader"
+    "/usr/bin/dotnet-loader",
+    "/usr/bin/dotnet-launcher-inhouse"
   ],
   "runtime_validated": true,
   "persistence": "Native app flags and guards use persistent storage. The installed optional boot hook enrolls voice, Wi-Fi presence and shell-preload runtime masks. Reapplication passed after one physical power cycle with a new kernel boot ID. Firmware-update survival is unverified."

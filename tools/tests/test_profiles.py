@@ -56,6 +56,7 @@ class ProfileTests(unittest.TestCase):
             for executable, argument, accepted in (
                 (expected, expected, True),
                 ("/usr/bin/dotnet-loader", expected, True),
+                ("/usr/bin/dotnet-launcher-inhouse", expected, True),
                 ("/usr/bin/dotnet-loader", expected + ".other", False),
                 ("/usr/bin/dotnet-loader", "/different/Voice.dll", False),
                 ("/unrelated/program", expected, False),
@@ -74,6 +75,35 @@ class ProfileTests(unittest.TestCase):
                         capture_output=True,
                     )
                     self.assertEqual(result.returncode == 0, accepted, result.stderr)
+
+    def test_absence_check_finds_surviving_managed_apps(self):
+        start = device_scripts.APP_CONTROL.index("verify_absent() {")
+        end = device_scripts.APP_CONTROL.index("\n}\n", start) + 3
+        verify_absent = device_scripts.APP_CONTROL[start:end]
+        expected = "/opt/usr/apps/art/bin/ArtApp.dll"
+        for runtime, survives in (
+            ("/usr/bin/dotnet-launcher-inhouse", True),
+            ("/usr/bin/dotnet-loader", True),
+            ("/unrelated/program", False),
+        ):
+            with self.subTest(runtime=runtime), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                proc = root / "proc" / "123"
+                proc.mkdir(parents=True)
+                (proc / "exe").symlink_to(runtime)
+                (proc / "cmdline").write_bytes(expected.encode() + b"\0")
+                (root / "before.tsv").write_text(f"art\tfalse\t123\t{expected}\n")
+                script = (device_scripts.PROCESS_IDENTITY + verify_absent).replace(
+                    "/proc/", str(root / "proc") + "/"
+                )
+                result = subprocess.run(
+                    ["/bin/bash"],
+                    input=f"STATE={root}\nstage={root}\n{script}verify_absent\n",
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode != 0, survives, result.stdout)
+                self.assertEqual("SURVIVING MANAGED APP" in result.stdout, survives)
 
     def test_identity_and_preimage_drift_stop_before_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -216,6 +246,28 @@ class ProfileTests(unittest.TestCase):
         self.assertIn("--tv is required", accepted.stderr)
         self.assertIn("invalid choice", run("frame", "shell-preload").stderr)
 
+    def test_app_groups_come_from_the_selected_profile(self):
+        def run(profile, group):
+            return subprocess.run(
+                [
+                    sys.executable,
+                    str(frame.HERE / "frame.py"),
+                    "--profile",
+                    profile,
+                    "apps",
+                    "status",
+                    "--group",
+                    group,
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+        accepted = run("s95c-2220", "art")
+        self.assertIn("--tv is required", accepted.stderr)
+        self.assertIn("invalid choice", run("s95c-2220", "gaming").stderr)
+        self.assertIn("invalid choice", run("frame", "art").stderr)
+
     def test_s95c_shell_preload_pins_unit_preimages(self):
         with patch.object(frame, "ACTIVE_PROFILE", "s95c-2220"):
             units = frame.policy()["optional_controls"]["shell-preload"][
@@ -232,6 +284,26 @@ class ProfileTests(unittest.TestCase):
             self.assertIn("STATE=/run/frame-services-shell-preload-v1", decoded)
             self.assertNotIn("org.tizen.menu.service", decoded)
             subprocess.run(["/bin/bash", "-n"], input=decoded, text=True, check=True)
+
+    def test_s95c_art_group_pins_app_preimages_and_spares_ambient_mode(self):
+        with patch.object(frame, "ACTIVE_PROFILE", "s95c-2220"):
+            policy = frame.policy()
+            apps = policy["optional_controls"]["art"]["application_ids"]
+            self.assertEqual(apps, ["org.tizen.art-app", "com.samsung.tv.home.art"])
+            script = frame.render_apps("apply", group="art")
+            for app in apps:
+                entry = policy["applications"][app]
+                for path in (entry["executable"], entry["manifest"]):
+                    self.assertIn(policy["preimages"][path] + "  " + path, script)
+            self.assertIn("/opt/usr/home/owner/share/frame-apps-art-v1", script)
+            self.assertIn(policy["validation_trial"]["journal"] + "/verified", script)
+            self.assertNotIn("ambient-support", script)
+            self.assertIn(
+                policy["preimages"]["/usr/bin/dotnet-launcher-inhouse"]
+                + "  /usr/bin/dotnet-launcher-inhouse",
+                script,
+            )
+            subprocess.run(["/bin/bash", "-n"], input=script, text=True, check=True)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ Advertising, telemetry, unwanted apps and certificates are separate opt-in scope
 
 Preserve Settings, normal remote navigation, HDMI/CEC, playback, audio output,
 networking, DRM, manual updates, One Connect, Netflix, browser/shared runtimes and manual
-Art Mode. Microphone shutdown takes priority over microphone-based automatic Art
+Art Mode on TVs that have it. Microphone shutdown takes priority over microphone-based automatic Art
 presence sensing; explain that loss. Do not flash firmware, downgrade, develop a
 launcher or install a persistent root hook as part of ordinary service shutdown.
 Automatic boot reapplication is a separate, explicit scope.
@@ -70,11 +70,16 @@ command. That profile supports 23 voice apps, seven guards, 21 voice units,
 ambient-sound and two independently assessed service groups: the two-unit
 `wifi-presence` group and the three-unit `shell-preload` group. The latter masks
 the boot-time background launches of the home preview updater, Multi View and
-the browser; the apps stay launchable on demand.
+the browser; the apps stay launchable on demand. Its one app group, `art`,
+disables ArtApp and Samsung home's Art tab. The S95C has no Art Mode (feature flag
+`homeui.artgallery_support` is false), yet `art_start.sh` launches ArtApp at every
+boot to sync art from Samsung's server. Ambient Mode is the separate
+`ambient-support` app and stays enabled.
 Other optional groups, certificates, Auto Update and blanket service scopes are
 rejected. Application requires the successful matching trial journal plus pinned
-preimages. The S95C's AOV dashboard uses `dotnet-loader`; process checks require
-the exact DLL argument and known runtime, not a name substring. The separate
+preimages. The S95C's AOV dashboard uses `dotnet-loader` and its inhouse apps use
+`dotnet-launcher-inhouse`; both runtimes are pinned. Process checks require the
+exact DLL argument and a known runtime, not a name substring. The separate
 read-only `compatibility-audit` and `network-audit` commands gather registrations,
 preimages, dependencies, ConnMan radio power and Ethernet state without recording
 audio or packets. Do not infer that radio-off stops Wi-Fi presence.
@@ -92,7 +97,7 @@ audio or packets. Do not infer that radio-off stops Wi-Fi presence.
 | `privacy-audit` | Read SmartThings sensor app flags, two known sound settings, Wi-Fi/ACR units and dependencies; does not change settings or launch apps. |
 | `voice-audit` | Inspect processes and capture metadata; does not record audio. |
 | `debloat-audit` | Read optional-app registrations, dependencies, process identities and game-model/config metadata without capturing screen frames. |
-| `apps apply/status/verify/restore --group GROUP` | Independently control advertising, smarthub-ads, gaming, health, tv-plus, smartthings or smartthings-find apps. |
+| `apps apply/status/verify/restore --group GROUP` | Independently control advertising, smarthub-ads, gaming, health, tv-plus, smartthings or smartthings-find apps; on the S95C, art. |
 | `services GROUP apply/status/restore` | Independently control advertising, reporting, wifi-presence, health, smartthings or screen-recognition runtime units; on the S95C, wifi-presence or shell-preload. |
 | `certificates apply/status/restore` | Overlay 11 verified certificate files in a separate journal, removing four emSign roots without disturbing voice state. Current boot only. |
 | `auto-update status/disable/restore` | Read or set the native Auto Update option; preserve its original value and leave manual updater services intact. |
@@ -200,7 +205,8 @@ user-facing README synchronized when behavior changes.
 The deployment history below describes the Frame profile. It is not evidence of
 S95C retained features. For the S95C session, use the current private reports:
 native voice and ambient-sound launch denial, seven guards, 21 voice masks, two
-Wi-Fi presence masks and three shell-preload masks have passed readback. Wi-Fi radio
+Wi-Fi presence masks, three shell-preload masks and the two-app `art` group have
+passed readback. Wi-Fi radio
 power was already false and Ethernet was up. The owner uses the original One
 Connect box and remote, no soundbar. Samsung's manual linked from the Canadian
 QN55S95CAF support page documents a bottom-edge physical microphone switch for
@@ -211,7 +217,9 @@ Wi-Fi presence and shell-preload. On the owner's 2026-10-26 physical power cycle
 the kernel boot ID changed. Before any host apply, the worker had reapplied all
 three scopes from 16.87 to 27.47 seconds after boot, and `startup status`,
 `status`, `apps status`, `sound-sensor status` and both group status commands
-passed. `apps verify` then denied all 23 direct voice app launches. The final metadata audit found an ACR-owned ALSA
+passed. `apps verify` then denied all 23 direct voice app launches.
+The owner then reported Home opening Quiet Home, HDMI 2 picture and sound,
+Netflix and another app, Settings and the browser all working. The final metadata audit found an ACR-owned ALSA
 capture endpoint in XRUN state; its room-microphone source is not established.
 Retain ACR for playback; do not call this complete microphone capture denial.
 This TV's `readlink` accepts one operand, so the descriptor audit batches `ls`
