@@ -54,28 +54,30 @@ Your agent handles dependencies, compatibility checks and recovery using
 ## Findings & Services
 
 These recommendations assume you use HDMI devices and streaming apps, and don’t
-need voice assistants or sound monitoring.
+need voice assistants or sound monitoring. “Disabled” and “kept enabled” describe
+the tested Frame Pro configuration; manual recommendations are identified separately.
+Optional controls still require the owner’s approval on other installations.
 
-| Service or feature | Recommendation | What we found and why |
+| Service or feature | Control or recommendation | What we found and why |
 | --- | --- | --- |
-| Bixby, Alexa and voice recognition | Disable | Separate apps handle assistants, speech recognition and wake words. Native app blocks prevent these apps from launching. |
-| Always-on voice and far-field listening | Disable | Dedicated services support voice activation, including standby paths. Disabling the visible assistant alone does not cover them. |
-| Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Disable for microphone privacy | These add microphone inputs beyond the TV’s built-in mic. Blocking them can remove hands-free features. Keep normal Bluetooth and audio output services. |
-| SmartThings and SmartThings Find | Disable unused integrations | Samshush blocks the selected client, plugin, hub and Find apps and the IoT hub startup paths. The shared sensor service stays enabled for light sync. |
-| SmartThings Sound Sensor / Pet Care | Turn sound sensing off | SmartThings can trigger events from sound, including in standby. The shared sensor service also handles light sync, so keep it enabled. |
-| Ambient sound and ultrasonic Art presence | Disable for microphone privacy | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode still works. |
-| Wi-Fi presence | Disable if unused | Samshush blocks the LAN-presence service and its startup path. Normal Wi-Fi and networking stay enabled. |
-| Viewing Information Services | Turn optional collection off | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
-| Content analysis and iACR | Keep enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
-| Screen-based game/app recognition | Disable if unused | The detector requests 960×540 frames at a configured 2.5-second interval, then feeds a 64×64 image into an INT8 model. Samshush blocks the recognition launcher and UI-image detector. |
-| Advertising and usage analytics | Disable dedicated components | Samshush blocks Adagent, targeted-ad, CoBA ads and the selected analytics and diagnostic-reporting services. Other apps may still send telemetry. |
-| TV Plus, Gaming Hub and Samsung Health | Disable if unused | Samshush blocks the selected apps and Health startup paths. Shared TV Plus broadcast and channel services stay enabled. |
-| PISA shared framework | Keep enabled | PISA schedules account-consent and customization services as well as ads. Block its separate adagent app to preserve those other functions. |
-| Remote Management | Leave off unless needed for support | The support daemon includes packet-dump capability. That is a reason to limit remote support, not evidence of continuous packet capture. |
-| HDMI-CEC / Anynet+ and ARC/eARC | Keep enabled | CEC handles device power and remote commands. ARC/eARC sends audio to the soundbar. |
-| eMudhra / emSign trust roots | Remove the four selected roots | Samshush filters these roots from 11 certificate files and leaves other certificates intact. Embedded app trust stores and cached certificates are unaffected. |
-| Automatic firmware updates | Turn off and update manually | Check compatibility before installing firmware. An update can reset the changes or patch the root exploit. |
-| Settings, manual Art Mode, playback, browser, Netflix, networking, One Connect and DRM | Keep enabled | These provide the TV’s core functions. Preserve their shared runtimes and unrelated trust certificates. |
+| Bixby, Alexa and voice recognition | Selected apps disabled | Separate apps handle assistants, speech recognition and wake words. Native app blocks prevent these apps from launching. |
+| Always-on voice and far-field listening | Selected services disabled | Dedicated services support voice activation, including standby paths. Disabling the visible assistant alone does not cover them. |
+| Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Selected services disabled | These add microphone inputs beyond the TV’s built-in mic. Blocking them can remove hands-free features. Keep normal Bluetooth and audio output services. |
+| SmartThings and SmartThings Find | Selected integrations disabled | Samshush blocks the selected client, plugin, hub and Find apps and the IoT hub startup paths. The shared sensor service stays enabled for light sync. |
+| SmartThings Sound Sensor / Pet Care | Sound sensing settings off | SmartThings can trigger events from sound, including in standby. The shared sensor service also handles light sync, so keep it enabled. |
+| Ambient sound and ultrasonic Art presence | Disabled | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode still works. |
+| Wi-Fi presence | Disabled | Samshush blocks the LAN-presence service and its startup path. Normal Wi-Fi and networking stay enabled. |
+| Viewing Information Services | Manual opt-out recommended | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
+| Content analysis and iACR | Kept enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
+| Screen-based game/app recognition | Disabled | The detector requests 960×540 frames at a configured 2.5-second interval, then feeds a 64×64 image into an INT8 model. Samshush blocks the recognition launcher and UI-image detector. |
+| Advertising and usage analytics | Selected components disabled | Samshush blocks Adagent, targeted-ad, CoBA ads and the selected analytics and diagnostic-reporting services. Other apps may still send telemetry. |
+| TV Plus, Gaming Hub and Samsung Health | Selected apps disabled | Samshush blocks the selected apps and Health startup paths. Shared TV Plus broadcast and channel services stay enabled. |
+| PISA shared framework | Kept enabled | PISA schedules account-consent and customization services as well as ads. Block its separate adagent app to preserve those other functions. |
+| Remote Management | Recommend off unless needed for support | The support daemon includes packet-dump capability. That is a reason to limit remote support, not evidence of continuous packet capture. |
+| HDMI-CEC / Anynet+ and ARC/eARC | Kept enabled | CEC handles device power and remote commands. ARC/eARC sends audio to the soundbar. |
+| eMudhra / emSign trust roots | Four selected roots removed | Samshush filters these roots from 11 certificate files and leaves other certificates intact. Embedded app trust stores and cached certificates are unaffected. |
+| Automatic firmware updates | Auto Update off; update manually | Check compatibility before installing firmware. An update can reset the changes or patch the root exploit. |
+| Settings, manual Art Mode, playback, browser, Netflix, networking, One Connect and DRM | Kept enabled | These provide the TV’s core functions. Preserve their shared runtimes and unrelated trust certificates. |
 
 Apps are disabled, not uninstalled. Apple TV playback, the sidebar, input selection
 and soundbar volume still work on the tested TV. This doesn’t cover every microphone

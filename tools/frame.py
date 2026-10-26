@@ -103,7 +103,7 @@ def render_apps(action, *, sound_sensor=False, group=None):
         prefix = prefix.replace("@@" + token + "@@", encoded)
     script = device_scripts.APP_CONTROL.replace(
         "@@MODE@@", "status" if action == "verify" else action
-    )
+    ).replace("@@PROCESS_IDENTITY@@", device_scripts.PROCESS_IDENTITY)
     application_ids = (
         ["com.samsung.tv.ambient-sound"]
         if sound_sensor
