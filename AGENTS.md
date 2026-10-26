@@ -67,7 +67,10 @@ and device identifiers; do not publish them in a Gist or commit them.
 
 All S95C device and recovery commands require `--profile s95c-2220` before the
 command. That profile supports 23 voice apps, seven guards, 21 voice units,
-ambient-sound and the independently assessed two-unit `wifi-presence` group.
+ambient-sound and two independently assessed service groups: the two-unit
+`wifi-presence` group and the three-unit `shell-preload` group. The latter masks
+the boot-time background launches of the home preview updater, Multi View and
+the browser; the apps stay launchable on demand.
 Other optional groups, certificates, Auto Update and blanket service scopes are
 rejected. Application requires the successful matching trial journal plus pinned
 preimages. The S95C's AOV dashboard uses `dotnet-loader`; process checks require
@@ -90,7 +93,7 @@ audio or packets. Do not infer that radio-off stops Wi-Fi presence.
 | `voice-audit` | Inspect processes and capture metadata; does not record audio. |
 | `debloat-audit` | Read optional-app registrations, dependencies, process identities and game-model/config metadata without capturing screen frames. |
 | `apps apply/status/verify/restore --group GROUP` | Independently control advertising, smarthub-ads, gaming, health, tv-plus, smartthings or smartthings-find apps. |
-| `services GROUP apply/status/restore` | Independently control advertising, reporting, wifi-presence, health, smartthings or screen-recognition runtime units. |
+| `services GROUP apply/status/restore` | Independently control advertising, reporting, wifi-presence, health, smartthings or screen-recognition runtime units; on the S95C, wifi-presence or shell-preload. |
 | `certificates apply/status/restore` | Overlay 11 verified certificate files in a separate journal, removing four emSign roots without disturbing voice state. Current boot only. |
 | `auto-update status/disable/restore` | Read or set the native Auto Update option; preserve its original value and leave manual updater services intact. |
 | `startup install/status/run/remove` | Save currently applied runtime scopes for automatic boot reapplication, inspect it, test the installed startup path, or restore the original startup script. |
@@ -149,6 +152,10 @@ Startup control commands have a separate lock so `run` cannot overlap removal or
 installation. Logs record monotonic phase timestamps for the launch handoff, each
 scope, and service preflight, masking, reload, stop and readback. Compare phase
 differences within a boot, not wall-clock timestamps.
+
+`/opt/etc` is a transmuting SMACK directory. A hook staged below it gains
+`SMACK64TRANSMUTE`, which the vendor script never had, so install and removal
+drop it before the atomic move and removal compares labels with the backup.
 
 Run `startup remove` before restoring runtime controls or changing the enrolled
 scopes. It restores the original script and metadata while leaving current
