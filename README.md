@@ -1,8 +1,9 @@
 # Samshush
 
 Root your Samsung TV and disable unwanted voice, advertising and background
-services. Changes are reversible. It currently supports the
-**Frame Pro QN65LS03FWFXZA running firmware 1301.0**.
+services. Changes are reversible. Verified profiles cover the **Frame Pro
+QN65LS03FWFXZA on firmware 1301.0** and **S95C QN55S95CAFXZA on firmware 2220.4**.
+Support is limited to the exact internal builds checked by each profile.
 
 ## How it works
 
@@ -21,6 +22,14 @@ App blocks use persistent settings. An optional startup hook reapplies service
 masks and certificate changes in the background, without your computer. Remove it
 with `startup remove` before restoring those controls. Firmware updates can reset
 the changes or patch the root exploit, so check compatibility before updating.
+
+The S95C profile (`--profile s95c-2220`) supports 23 voice app blocks, seven
+startup guards, 21 voice units, the separate ambient-sound app and optional
+Wi-Fi presence and Samsung home preload masks, and the Art app group. Other
+optional controls remain
+unsupported on that profile. Its native disable/restore trial, launch-denial checks
+and boot-hook reapplication after a physical power cycle passed on one TV.
+The default `frame` profile retains its existing controls.
 
 ## Usage
 
@@ -60,13 +69,16 @@ Optional controls still require the owner’s approval on other installations.
 
 | Service or feature | Control or recommendation | What we found and why |
 | --- | --- | --- |
+| TV's physical microphone switch | Manual: set it to Off | Samsung's [S95C-family manual](https://www.samsung.com/ca/support/model/QN55S95CAFXZC/) places the switch on the bottom edge; location varies. It disables the TV microphone's voice and sound features. The Smart Remote has a separate microphone. |
 | Bixby, Alexa and voice recognition | Selected apps disabled | Separate apps handle assistants, speech recognition and wake words. Native app blocks prevent these apps from launching. |
 | Always-on voice and far-field listening | Selected services disabled | Dedicated services support voice activation, including standby paths. Disabling the visible assistant alone does not cover them. |
 | Virtual microphones, Bluetooth HFP and soundbar voice passthrough | Selected services disabled | These add microphone inputs beyond the TV’s built-in mic. Blocking them can remove hands-free features. Keep normal Bluetooth and audio output services. |
 | SmartThings and SmartThings Find | Selected integrations disabled | Samshush blocks the selected client, plugin, hub and Find apps and the IoT hub startup paths. The shared sensor service stays enabled for light sync. |
 | SmartThings Sound Sensor / Pet Care | Sound sensing settings off | SmartThings can trigger events from sound, including in standby. The shared sensor service also handles light sync, so keep it enabled. |
 | Ambient sound and ultrasonic Art presence | Disabled | `ambient-sound` uses the microphone for sound and presence detection. Blocking it removes automatic presence detection. Manual Art Mode still works. |
-| Wi-Fi presence | Disabled | Samshush blocks the LAN-presence service and its startup path. Normal Wi-Fi and networking stay enabled. |
+| Wi-Fi presence | Disabled | Samshush blocks the LAN-presence service and its startup path separately from radio power. On the Ethernet-connected S95C, Wi-Fi was already off while presence was still running. Normal Wi-Fi, Ethernet and networking stay enabled. |
+| Samsung home preloads (S95C) | Disabled on the S95C | At every boot Samsung starts its home preview updater, Multi View and the browser in the background. Samshush masks those three preload units, so each app starts only when you open it, at the cost of a slower first launch. |
+| Art app on TVs without Art Mode (S95C) | Disabled on the S95C | The S95C has no Art Mode, but Samsung still starts its Art app at every boot to sync art from Samsung's server, and the Art app then starts the home screen's Art tab. Samshush disables both. Ambient Mode is a separate app and keeps working. |
 | Viewing Information Services | Manual opt-out recommended | Viewing-data consent is separate from voice settings. Turn it off in the TV’s privacy settings. |
 | Content analysis and iACR | Kept enabled | Content analysis handles logo recognition and HDMI auto-detection. iACR provides playback controls. Disabling these can break useful input features. |
 | Screen-based game/app recognition | Disabled | The detector requests 960×540 frames at a configured 2.5-second interval, then feeds a 64×64 image into an INT8 model. Samshush blocks the recognition launcher and UI-image detector. |

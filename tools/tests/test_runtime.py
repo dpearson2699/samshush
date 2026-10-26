@@ -91,6 +91,7 @@ class RuntimeTests(unittest.TestCase):
             "ACTION": action,
             "SCOPE": scope,
             "BUILD": "expected-build",
+            "ARCH": getattr(self, "expected_architecture", "aarch64"),
             "CERTS": "\n".join(self.rows),
             "UNITS": getattr(self, "test_units", "one.service\ntwo.service"),
         }
@@ -125,6 +126,16 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(restored.returncode, 0, restored.stderr)
         state = json.loads((self.root / "systemd.json").read_text())
         self.assertEqual(state["one.service"]["active"], "active")
+
+    def test_armv7_profile_applies_and_rejects_other_architecture(self):
+        self.expected_architecture = "armv7l"
+        rejected = self.run_action("apply", "voice")
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertFalse((self.root / "state").exists())
+        self.config["architecture"] = "armv7l"
+        applied = self.run_action("apply", "voice")
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertEqual(self.run_action("restore").returncode, 0)
 
     def assert_original(self):
         for i in range(2):

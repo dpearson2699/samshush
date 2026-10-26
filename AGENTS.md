@@ -9,7 +9,7 @@ Advertising, telemetry, unwanted apps and certificates are separate opt-in scope
 
 Preserve Settings, normal remote navigation, HDMI/CEC, playback, audio output,
 networking, DRM, manual updates, One Connect, Netflix, browser/shared runtimes and manual
-Art Mode. Microphone shutdown takes priority over microphone-based automatic Art
+Art Mode on TVs that have it. Microphone shutdown takes priority over microphone-based automatic Art
 presence sensing; explain that loss. Do not flash firmware, downgrade, develop a
 launcher or install a persistent root hook as part of ordinary service shutdown.
 Automatic boot reapplication is a separate, explicit scope.
@@ -36,10 +36,14 @@ separate commands and journals. Apply them only within the owner's requested sco
 4. Use existing official SDB and OpenSSL installations before installing duplicates.
    Run `uv sync --project tools --locked`, then `frame.py doctor`. SDB resolves from
    `--sdb`, `SDB`, the local cached SDK, or `PATH`. `doctor` never contacts the TV.
-5. Inspect the access method and side effects before invoking it. The supplied
-   profile and payloads have evidence only for QN65LS03FWFXZA, Tizen 9, build
-   `T-RSMFAKUC-0090-REL-202607141953`. Do not bypass build checks or merely replace a
-   build string to support another TV. The app path also requires owner UID 5001.
+5. Inspect the access method and side effects before invoking it. The default
+   profile covers QN65LS03FWFXZA, Tizen 9, build
+   `T-RSMFAKUC-0090-REL-202607141953`. The explicit `--profile s95c-2220` covers
+   QN55S95CAFXZA, Tizen 9, ARMv7, build `T-PTMCAKUC-0090-REL-202603190200`
+   (menu firmware 2220.4). Its live executable/manifest/unit preimages and native
+   disable/readback/restore trial were validated separately. Do not bypass build
+   checks or merely replace a build string to support another TV. The app path
+   also requires owner UID 5001.
    All device commands acquire temporary root, including inspect/status/audit.
 6. Keep official downloads immutable. Record source URL, retrieval date, size and
    SHA-256. Downloaded firmware may differ from the installed build. Extracted or
@@ -61,6 +65,25 @@ uv run --project tools tools/frame.py --tv 192.0.2.10 --callback-host 192.0.2.20
 reports include completion, command results and cleanup evidence. Protect raw logs
 and device identifiers; do not publish them in a Gist or commit them.
 
+All S95C device and recovery commands require `--profile s95c-2220` before the
+command. That profile supports 23 voice apps, seven guards, 21 voice units,
+ambient-sound and two independently assessed service groups: the two-unit
+`wifi-presence` group and the three-unit `shell-preload` group. The latter masks
+the boot-time background launches of the home preview updater, Multi View and
+the browser; the apps stay launchable on demand. Its one app group, `art`,
+disables ArtApp and Samsung home's Art tab. The S95C has no Art Mode (feature flag
+`homeui.artgallery_support` is false), yet `art_start.sh` launches ArtApp at every
+boot to sync art from Samsung's server. Ambient Mode is the separate
+`ambient-support` app and stays enabled.
+Other optional groups, certificates, Auto Update and blanket service scopes are
+rejected. Application requires the successful matching trial journal plus pinned
+preimages. The S95C's AOV dashboard uses `dotnet-loader` and its inhouse apps use
+`dotnet-launcher-inhouse`; both runtimes are pinned. Process checks require the
+exact DLL argument and a known runtime, not a name substring. The separate
+read-only `compatibility-audit` and `network-audit` commands gather registrations,
+preimages, dependencies, ConnMan radio power and Ethernet state without recording
+audio or packets. Do not infer that radio-off stops Wi-Fi presence.
+
 | Command | Effect and limits |
 | --- | --- |
 | `apps apply` | Save native app flags/processes, disable 25 selected apps, verify launch denial. Persistent journal; refuses an existing journal. |
@@ -74,8 +97,8 @@ and device identifiers; do not publish them in a Gist or commit them.
 | `privacy-audit` | Read SmartThings sensor app flags, two known sound settings, Wi-Fi/ACR units and dependencies; does not change settings or launch apps. |
 | `voice-audit` | Inspect processes and capture metadata; does not record audio. |
 | `debloat-audit` | Read optional-app registrations, dependencies, process identities and game-model/config metadata without capturing screen frames. |
-| `apps apply/status/verify/restore --group GROUP` | Independently control advertising, smarthub-ads, gaming, health, tv-plus, smartthings or smartthings-find apps. |
-| `services GROUP apply/status/restore` | Independently control advertising, reporting, wifi-presence, health, smartthings or screen-recognition runtime units. |
+| `apps apply/status/verify/restore --group GROUP` | Independently control advertising, smarthub-ads, gaming, health, tv-plus, smartthings or smartthings-find apps; on the S95C, art. |
+| `services GROUP apply/status/restore` | Independently control advertising, reporting, wifi-presence, health, smartthings or screen-recognition runtime units; on the S95C, wifi-presence or shell-preload. |
 | `certificates apply/status/restore` | Overlay 11 verified certificate files in a separate journal, removing four emSign roots without disturbing voice state. Current boot only. |
 | `auto-update status/disable/restore` | Read or set the native Auto Update option; preserve its original value and leave manual updater services intact. |
 | `startup install/status/run/remove` | Save currently applied runtime scopes for automatic boot reapplication, inspect it, test the installed startup path, or restore the original startup script. |
@@ -135,6 +158,10 @@ installation. Logs record monotonic phase timestamps for the launch handoff, eac
 scope, and service preflight, masking, reload, stop and readback. Compare phase
 differences within a boot, not wall-clock timestamps.
 
+`/opt/etc` is a transmuting SMACK directory. A hook staged below it gains
+`SMACK64TRANSMUTE`, which the vendor script never had, so install and removal
+drop it before the atomic move and removal compares labels with the backup.
+
 Run `startup remove` before restoring runtime controls or changing the enrolled
 scopes. It restores the original script and metadata while leaving current
 controls applied. Then use the relevant restore commands, or reinstall after
@@ -174,6 +201,29 @@ user-facing README synchronized when behavior changes.
   temporary cache experiment stalled PID 1 and was reverted.
 
 ## Prove the outcome
+
+The deployment history below describes the Frame profile. It is not evidence of
+S95C retained features. For the S95C session, use the current private reports:
+native voice and ambient-sound launch denial, seven guards, 21 voice masks, two
+Wi-Fi presence masks, three shell-preload masks and the two-app `art` group have
+passed readback. Wi-Fi radio
+power was already false and Ethernet was up. The owner uses the original One
+Connect box and remote, no soundbar. Samsung's manual linked from the Canadian
+QN55S95CAF support page documents a bottom-edge physical microphone switch for
+S9*C; ask the owner to confirm Off. Its position varies and the remote mic is
+separate. Sound detection keys were already off and were left untouched.
+Automatic boot reapplication was explicitly authorized and enrolls voice,
+Wi-Fi presence and shell-preload. On the owner's 2026-10-26 physical power cycle
+the kernel boot ID changed. Before any host apply, the worker had reapplied all
+three scopes from 16.87 to 27.47 seconds after boot, and `startup status`,
+`status`, `apps status`, `sound-sensor status` and both group status commands
+passed. `apps verify` then denied all 23 direct voice app launches.
+The owner then reported Home opening Quiet Home, HDMI 2 picture and sound,
+Netflix and another app, Settings and the browser all working. The final metadata audit found an ACR-owned ALSA
+capture endpoint in XRUN state; its room-microphone source is not established.
+Retain ACR for playback; do not call this complete microphone capture denial.
+This TV's `readlink` accepts one operand, so the descriptor audit batches `ls`
+symlink metadata instead. No audio or packets were recorded.
 
 Check native flags, exact executable identity/process absence, service/path/socket/
 bus/timer activation, direct app launches and applicable capture controls separately.

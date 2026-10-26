@@ -50,13 +50,23 @@ class StartupTests(unittest.TestCase):
         (self.device / "etc/os-release").write_text("BUILD_ID=test\n")
         (self.device / "proc/sys/kernel/random/boot_id").write_text("boot-one\n")
         self.helper = self.root / "commands.py"
-        self.helper.write_text("""import sys, pathlib, hashlib, shutil, os
+        self.helper.write_text("""import sys, pathlib, hashlib, shutil, os, json
 name,args=sys.argv[1],sys.argv[2:]
+root=pathlib.Path(os.environ["STARTUP_TEST_ROOT"])
+# SMACK labels keyed by inode so they follow mv. /opt/etc is a transmuting
+# directory on the TV: files created below it gain SMACK64TRANSMUTE.
+labels_file=root/"smack.json"
+labels=json.loads(labels_file.read_text()) if labels_file.exists() else {}
+def inode(p): return str(pathlib.Path(p).stat().st_ino)
+def save(): labels_file.write_text(json.dumps(labels))
 if name=="id": print(0)
 elif name=="stat":
  p=pathlib.Path(args[-1]); mode=p.stat().st_mode & 0o777
  print(f"0:0:{mode:o}" if args[1]=="%u:%g:%a" else f"0:{mode:o}")
-elif name=="cp": shutil.copy2(args[-2], args[-1])
+elif name=="cp":
+ shutil.copy2(args[-2], args[-1])
+ if str(root/"device"/"opt"/"etc") in str(pathlib.Path(args[-1]).resolve().parent):
+  labels[inode(args[-1])]=True; save()
 elif name=="sha256sum":
  if args and args[0]=="-c":
   for line in pathlib.Path(args[1]).read_text().splitlines():
@@ -66,10 +76,10 @@ elif name=="sha256sum":
   data=pathlib.Path(args[-1]).read_bytes() if args else sys.stdin.buffer.read()
   print(hashlib.sha256(data).hexdigest()+"  "+(args[-1] if args else "-"))
 elif name=="chsmack":
- if args[0]!="-a": print(args[0]+' access="_"')
+ if args[0]=="-T": labels.pop(inode(args[1]),None); save()
+ elif args[0]!="-a": print(args[0]+' access="_"'+(' transmute="TRUE"' if labels.get(inode(args[0])) else ""))
 elif name=="chown": pass
 elif name=="systemctl":
- root=pathlib.Path(os.environ["STARTUP_TEST_ROOT"])
  if args[0]=="show":
   key=args[args.index("-p")+1]
   if key=="ActiveState": print((root/"worker-state").read_text())
@@ -163,6 +173,14 @@ else: sys.exit(99)
             (path / "complete").touch()
         return path
 
+    def smack(self, path):
+        return subprocess.run(
+            [str(self.bin / "chsmack"), str(path)],
+            capture_output=True,
+            text=True,
+            env=os.environ | {"STARTUP_TEST_ROOT": str(self.root)},
+        ).stdout
+
     def install(self):
         self.journal()
         result = self.action("install")
@@ -173,9 +191,11 @@ else: sys.exit(99)
         self.assertEqual((self.boot / "enabled").read_text().split("\t")[0], "voice")
         self.assertNotIn("ads", (self.boot / "enabled").read_text())
         self.assertEqual((self.boot / "original").read_bytes(), self.original)
+        self.assertNotIn("transmute", self.smack(self.hook))
         result = self.action("remove")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.hook.read_bytes(), self.original)
+        self.assertNotIn("transmute", self.smack(self.hook))
         self.assertEqual(self.hook.stat().st_mode & 0o777, 0o777)
         self.assertFalse(self.boot.exists())
         self.assertTrue((self.device / "run/frame-runtime-v1/complete").exists())

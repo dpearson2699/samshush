@@ -25,7 +25,7 @@ def die(message="injected failure"):
 if name == "id":
     print("0" if args else "uid=0(root) gid=0(root)")
 elif name == "uname":
-    print("aarch64")
+    print(config.get("architecture", "aarch64"))
 elif name == "readlink":
     if args[0] in ("/proc/self/ns/mnt", "/proc/1/ns/mnt"):
         print("mnt:[123]")

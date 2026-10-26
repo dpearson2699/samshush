@@ -199,7 +199,7 @@ if [[ $ACTION == restore ]]; then
 fi
 [[ $ACTION == apply ]] || fail 'Unknown action'
 [[ ! -e $STATE ]] || fail 'Changes already recorded; run status or restore before applying again'
-[[ $(uname -m) == aarch64 ]] || fail 'Expected AArch64 Frame Pro'
+[[ $(uname -m) == @@ARCH@@ ]] || fail 'Unexpected TV architecture'
 [[ $(stat -f -c %T /run) == tmpfs ]] || fail '/run is not tmpfs; per-boot restoration assumptions do not hold'
 grep -Fxq "BUILD_ID=$BUILD" /etc/os-release || fail 'Different firmware build; inspect and prepare matching policy'
 
@@ -302,7 +302,15 @@ printf '\nALSA CAPTURE STATUS (metadata only)\n'
 shopt -s nullglob
 for file in /proc/asound/card*/pcm*c/sub*/status; do
     printf '%s: ' "$file"
-    if [[ -r $file ]]; then head -c 4096 "$file"; else echo 'UNAVAILABLE'; fi
+    if [[ -r $file ]]; then
+        status=$(head -c 4096 "$file")
+        printf '%s\n' "$status"
+        capture_pid=$(sed -n 's/^owner_pid *: *\([0-9][0-9]*\)$/\1/p' <<< "$status")
+        if [[ $capture_pid =~ ^[0-9]+$ ]]; then
+            printf 'CAPTURE OWNER PID=%s EXE=' "$capture_pid"
+            readlink "/proc/$capture_pid/exe" || echo UNAVAILABLE
+        fi
+    else echo 'UNAVAILABLE'; fi
 done
 printf '\nVOICE PROCESSES AND OPEN SOUND DEVICE REFERENCES\n'
 count=0
@@ -318,19 +326,85 @@ for process in /proc/[0-9]*; do
     if [[ ! -r $process/fd || ! -x $process/fd ]]; then
         echo "UNAVAILABLE: descriptors for PID $pid"; continue
     fi
-    fd_count=0
-    for fd in "$process"/fd/*; do
-        fd_count=$((fd_count + 1))
-        if (( fd_count > 1024 )); then echo "TRUNCATED: descriptors for PID $pid"; break; fi
-        target=$(readlink "$fd" 2>/dev/null) || continue
+    descriptors=("$process"/fd/*)
+    if (( ${#descriptors[@]} == 0 )); then continue; fi
+    if (( ${#descriptors[@]} > 1024 )); then echo "TRUNCATED: descriptors for PID $pid"; fi
+    # The TV's readlink accepts one operand; ls batches these numeric fd names.
+    targets=$(ls -l "${descriptors[@]:0:1024}" 2>/dev/null) || true
+    while IFS= read -r descriptor; do
+        [[ $descriptor == *' -> '* ]] || continue
+        target=${descriptor#* -> }
         case "$target" in
             /dev/micom-*) ;; # Microcontroller channels are not identified microphone devices.
             /dev/snd/*|/dev/*mic*|/dev/*audio*) printf 'AUDIO_FD PID=%s EXE=%s TARGET=%s\n' "$pid" "$exe" "$target" ;;
         esac
-    done
+    done <<< "$targets"
 done
 printf '\nINCOMPLETE: separately verify app-manager launches/restarts, remote/USB/Bluetooth/browser inputs, vendor HAL/DSP capture, hardware switch, standby and cold boot. No audio was recorded.\n'
 """
+
+COMPATIBILITY_AUDIT = r"""#!/bin/bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[[ $(id -u) == 0 ]] || exit 1
+echo 'IDENTITY'
+cat /etc/os-release
+uname -m
+stat -c 'OWNER %u:%g %a %n' /opt/usr/home/owner
+cat /proc/sys/kernel/random/boot_id /proc/uptime
+echo 'EXISTING JOURNALS'
+for path in /run/frame-runtime-v1 /opt/usr/home/owner/share/frame-voice-apps-v2 /opt/usr/home/owner/share/frame-sound-sensor-v1 /opt/usr/share/samshush-boot-v1; do
+ if [[ -e $path || -L $path ]]; then ls -ld "$path"; else echo "ABSENT $path"; fi
+done
+echo 'PACKAGE SCHEMA'
+sqlite3 -readonly /opt/dbspace/.pkgmgr_parser.db 'PRAGMA table_info(package_app_info);'
+echo 'VOICE APP REGISTRATIONS'
+sqlite3 -readonly -separator $'\t' /opt/dbspace/.pkgmgr_parser.db "SELECT app_id,app_disable,app_exec FROM package_app_info WHERE app_id IN (@@APPS@@) ORDER BY app_id;"
+echo 'VOICE EXECUTABLE PREIMAGES'
+if [[ -f /usr/bin/dotnet-loader ]]; then sha256sum /usr/bin/dotnet-loader; fi
+while IFS=$'\t' read -r app exe; do
+ printf 'APP %s\n' "$app"
+ if [[ $exe == /* && -f $exe ]]; then sha256sum -- "$exe"; else printf 'UNRESOLVED EXECUTABLE %s\n' "$exe"; fi
+ for manifest in "/usr/share/packages/$app.xml" "/opt/share/packages/$app.xml" "/usr/apps/$app/tizen-manifest.xml"; do
+  if [[ -f $manifest ]]; then printf 'MANIFEST %s\n' "$manifest"; sha256sum "$manifest"; cat "$manifest"; fi
+ done
+done < <(sqlite3 -readonly -separator $'\t' /opt/dbspace/.pkgmgr_parser.db "SELECT app_id,app_exec FROM package_app_info WHERE app_id IN (@@APPS@@) ORDER BY app_id;")
+echo 'REGISTERED APP PROCESS IDENTITIES'
+while read -r app; do
+ state=$(app_launcher -r "$app" -u 5001 2>&1) || true
+ printf 'APP STATE %s %s\n' "$app" "$state"
+ if [[ $state == 'result: running' ]]; then
+  output=$(aul_test get_pid_for_uid "$app" 5001 2>&1) || true
+  pid=$(sed -n 's/^.*ret = \([0-9][0-9]*\)$/\1/p' <<< "$output")
+  [[ $pid =~ ^[0-9]+$ && $pid -gt 0 ]] || exit 1
+  printf 'APP PID %s %s\n' "$app" "$pid"
+  readlink "/proc/$pid/exe" || echo 'EXECUTABLE UNREADABLE'
+  head -c 8192 "/proc/$pid/cmdline" | tr '\0' '\n'
+ fi
+done < <(sqlite3 -readonly /opt/dbspace/.pkgmgr_parser.db "SELECT app_id FROM package_app_info WHERE app_id IN (@@APPS@@) ORDER BY app_id;")
+echo 'VOICE UNIT DEFINITIONS AND DEPENDENCIES'
+while read -r unit; do
+ echo "UNIT $unit"
+ systemctl show "$unit" -p Id -p LoadState -p ActiveState -p MainPID -p UnitFileState -p FragmentPath -p Requires -p Wants -p BindsTo -p PartOf -p RequiredBy -p BoundBy -p ConsistsOf -p Triggers -p TriggeredBy
+ if [[ -f /usr/lib/systemd/system/$unit ]]; then sha256sum "/usr/lib/systemd/system/$unit"; cat "/usr/lib/systemd/system/$unit"; fi
+done <<'UNITS'
+@@UNITS@@
+UNITS
+echo 'ADDITIONAL VOICE ACTIVATION FILES'
+find /usr/lib/systemd/system /usr/share/dbus-1/system-services /usr/share/dbus-1/services -maxdepth 1 -type f \( -iname '*voice*' -o -iname '*bixby*' -o -iname '*alexa*' -o -iname '*mic*' -o -iname '*aov*' -o -iname '*hfp*' -o -iname '*ambient-sound*' -o -iname '*wakeup*' \) -print
+echo 'STARTUP PREIMAGES'
+cat /etc/prd_info.ini
+for path in /opt/etc/parseinfo.sh /usr/lib/systemd/system/AT-HUB.service; do
+ stat -c '%u:%g %a %n' "$path"
+ ls -lZ "$path"
+ sha256sum "$path"
+ cat "$path"
+done
+echo 'CORE APP REGISTRATIONS'
+sqlite3 -readonly -separator $'\t' /opt/dbspace/.pkgmgr_parser.db "SELECT app_id,app_disable,app_exec FROM package_app_info WHERE app_id LIKE '%setting%' OR app_id LIKE '%netflix%' OR app_id LIKE '%browser%' OR app_id LIKE '%viewer%' OR app_id LIKE '%remoteapp%' OR app_id LIKE '%ambient-support%' OR app_id LIKE '%tvsensor%' ORDER BY app_id;"
+echo 'COMPATIBILITY AUDIT COMPLETE; no privacy controls changed'
+"""
+
 
 PROCESS_IDENTITY = r"""managed_runtime() {
  case "$1" in /usr/bin/dotnet-loader|/usr/bin/dotnet-launcher-inhouse|*/dotnet|*/apphost|*/CoreRuntime*) return 0;; esac
@@ -355,7 +429,7 @@ LOCK=$STATE.lock
 DB=/opt/dbspace/.pkgmgr_parser.db
 fail() { echo "ERROR: $*" >&2; exit 1; }
 [[ $(id -u) == 0 && $(stat -c %u /opt/usr/home/owner) == 5001 ]] || fail 'Unexpected identity'
-grep -Fxq 'BUILD_ID=T-RSMFAKUC-0090-REL-202607141953' /etc/os-release || fail 'Unexpected firmware'
+grep -Fxq 'BUILD_ID=@@BUILD@@' /etc/os-release || fail 'Unexpected firmware'
 [[ ! -L $STATE && ! -L $LOCK ]] || fail 'Unexpected journal symlink'
 [[ ! -e $STATE || $(stat -c '%u:%a' "$STATE") == 0:700 ]] || fail 'Unexpected journal ownership'
 owner_pkg() { /usr/bin/dotnet "$stage/OwnerExec.dll" /usr/bin/pkgcmd "$@"; }
@@ -464,6 +538,7 @@ while read -r app; do
  [[ $(flag "$app") == false ]] || fail "Preserve existing state for $app"
  /usr/bin/dotnet "$stage/OwnerExec.dll" /usr/bin/pkginfo --app "$app" | grep -Fxq 'Enabled: 1' || fail "Native app not enabled: $app"
  pid=$(query_pid "$app") || fail "Cannot query PID: $app"
+ @@TRIAL_PREFLIGHT@@
  exe=$(sqlite3 -readonly "$DB" "SELECT app_exec FROM package_app_info WHERE app_id='$app';")
  [[ $exe == /* && $exe != *$'\t'* && $exe != *$'\n'* ]] || fail 'Invalid executable'
  if (( pid > 0 )); then matches_process "$pid" "$exe" || fail "Unexpected running executable: $app"; fi
@@ -621,6 +696,39 @@ if command -v vconftool >/dev/null; then
  done
 else echo 'VCONF_READER_UNAVAILABLE'; fi
 echo 'PRIVACY AUDIT COMPLETE'
+"""
+
+
+NETWORK_AUDIT = r"""#!/bin/bash
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[[ $(id -u) == 0 ]] || exit 1
+grep -Fxq 'BUILD_ID=@@BUILD@@' /etc/os-release || exit 1
+echo 'NETWORK AUDIT: read-only; no packet capture'
+ip -4 route
+echo 'CONNMAN TECHNOLOGIES'
+dbus-send --system --print-reply --reply-timeout=3000 --dest=net.connman / net.connman.Manager.GetTechnologies || echo TECHNOLOGIES_UNAVAILABLE
+echo 'CONNMAN SERVICES'
+dbus-send --system --print-reply --reply-timeout=3000 --dest=net.connman / net.connman.Manager.GetServices || echo SERVICES_UNAVAILABLE
+echo 'WIFI TECHNOLOGY PROPERTIES'
+dbus-send --system --print-reply --reply-timeout=3000 --dest=net.connman /net/connman/technology/wifi net.connman.Technology.GetProperties || echo WIFI_PROPERTIES_UNAVAILABLE
+echo 'NETWORK LINK METADATA'
+for device in /sys/class/net/*; do
+ printf '%s: ' "${device##*/}"
+ cat "$device/operstate"
+done
+echo 'PRESENCE UNIT DEPENDENCIES AND PREIMAGES'
+for unit in wifi-presence.path wifi-presence.service; do
+ systemctl show "$unit" -p Id -p LoadState -p ActiveState -p MainPID -p UnitFileState -p FragmentPath -p Requires -p Wants -p RequiredBy -p WantedBy -p BindsTo -p BoundBy -p PartOf -p ConsistsOf -p Triggers -p TriggeredBy
+ sha256sum "/usr/lib/systemd/system/$unit"
+ cat "/usr/lib/systemd/system/$unit"
+done
+echo 'RFKILL METADATA'
+for device in /sys/class/rfkill/rfkill*; do
+ [[ -d $device ]] || continue
+ for property in name type soft hard; do printf '%s %s: ' "$device" "$property"; cat "$device/$property"; done
+done
+echo 'NETWORK AUDIT COMPLETE; no controls changed'
 """
 
 
