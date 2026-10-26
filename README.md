@@ -25,9 +25,9 @@ the changes or patch the root exploit, so check compatibility before updating.
 
 The S95C profile (`--profile s95c-2220`) supports 23 voice app blocks, seven
 startup guards, 21 voice units, the separate ambient-sound app and optional
-Wi-Fi presence masks. Other optional controls remain unsupported on that profile.
-Its native disable/restore trial and launch-denial checks passed; boot-hook
-installation and reboot persistence must be verified separately on the target TV.
+Wi-Fi presence and Samsung home preload masks. Other optional controls remain
+unsupported on that profile. Its native disable/restore trial, launch-denial checks
+and boot-hook reapplication after a physical power cycle passed on one TV.
 The default `frame` profile retains its existing controls.
 
 ## Usage

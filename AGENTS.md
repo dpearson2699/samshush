@@ -198,18 +198,20 @@ user-facing README synchronized when behavior changes.
 ## Prove the outcome
 
 The deployment history below describes the Frame profile. It is not evidence of
-S95C retained features or reboot persistence. For the S95C session, use the current
-private reports: native voice and ambient-sound launch denial, seven guards,
-21 voice masks and two Wi-Fi presence masks have passed readback. Wi-Fi radio
+S95C retained features. For the S95C session, use the current private reports:
+native voice and ambient-sound launch denial, seven guards, 21 voice masks, two
+Wi-Fi presence masks and three shell-preload masks have passed readback. Wi-Fi radio
 power was already false and Ethernet was up. The owner uses the original One
 Connect box and remote, no soundbar. Samsung's manual linked from the Canadian
 QN55S95CAF support page documents a bottom-edge physical microphone switch for
 S9*C; ask the owner to confirm Off. Its position varies and the remote mic is
 separate. Sound detection keys were already off and were left untouched.
-Automatic boot reapplication was explicitly authorized. Installation and its
-current-boot installed-path run passed for voice and Wi-Fi presence. Require a
-changed boot ID and fresh successful result/status evidence before claiming
-reboot persistence on this S95C. The final metadata audit found an ACR-owned ALSA
+Automatic boot reapplication was explicitly authorized and enrolls voice,
+Wi-Fi presence and shell-preload. On the owner's 2026-10-26 physical power cycle
+the kernel boot ID changed. Before any host apply, the worker had reapplied all
+three scopes from 16.87 to 27.47 seconds after boot, and `startup status`,
+`status`, `apps status`, `sound-sensor status` and both group status commands
+passed. `apps verify` then denied all 23 direct voice app launches. The final metadata audit found an ACR-owned ALSA
 capture endpoint in XRUN state; its room-microphone source is not established.
 Retain ACR for playback; do not call this complete microphone capture denial.
 This TV's `readlink` accepts one operand, so the descriptor audit batches `ls`

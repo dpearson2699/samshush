@@ -309,10 +309,10 @@
       "/opt/usr/share/systemd/system/com.samsung.tv.passthru-service"
     ]
   ],
-  "verification_scope": "Exact model/build/architecture and live executable/manifest/unit hashes checked; single native app disable/launch-denial/restore trial passed. Verified 23 voice app blocks, seven guards, 21 voice masks, ambient-sound launch denial and two Wi-Fi presence masks. Startup installation and warm installed-path run passed. The owner reports the built-in microphone switch Off. Changed-boot persistence and retained-feature owner tests remain pending; complete microphone capture denial is not established.",
+  "verification_scope": "Exact model/build/architecture and live executable/manifest/unit hashes checked; single native app disable/launch-denial/restore trial passed. Verified 23 voice app blocks, seven guards, 21 voice masks, ambient-sound launch denial, two Wi-Fi presence masks and three shell-preload masks. After a physical power cycle with a new kernel boot ID, the startup worker reapplied voice, Wi-Fi presence and shell-preload and every status check passed before any host apply. The owner reports the built-in microphone switch Off. Retained-feature owner tests remain pending; complete microphone capture denial is not established.",
   "managed_runtimes": [
     "/usr/bin/dotnet-loader"
   ],
   "runtime_validated": true,
-  "persistence": "Native app flags and guards use persistent storage. The installed optional boot hook enrolls voice and Wi-Fi presence runtime masks. Current-boot installed-path run passed; a new kernel boot ID and fresh result/status checks are required to establish reboot persistence. Firmware-update survival is unverified."
+  "persistence": "Native app flags and guards use persistent storage. The installed optional boot hook enrolls voice, Wi-Fi presence and shell-preload runtime masks. Reapplication passed after one physical power cycle with a new kernel boot ID. Firmware-update survival is unverified."
 }
