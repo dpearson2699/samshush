@@ -184,6 +184,9 @@ if [[ $ACTION == remove ]]; then
     [[ $current == $(hash "$ROOT/wrapper") || $current == @@ORIGINAL_HASH@@ ]] || fail 'Startup hook changed; refusing overwrite'
     TEMP=$(mktemp -d /opt/etc/.samshush-restore.XXXXXXXX)
     cp --preserve=all "$ROOT/original" "$TEMP/parseinfo.sh"
+    # /opt/etc transmutes, so a file staged below it gains SMACK64TRANSMUTE;
+    # the vendor hook never had it.
+    chsmack -T "$TEMP/parseinfo.sh"
     [[ $(hash "$TEMP/parseinfo.sh") == @@ORIGINAL_HASH@@ ]] || fail 'Restore copy mismatch'
     mv -f "$TEMP/parseinfo.sh" "$HOOK"
     [[ $(hash "$HOOK") == @@ORIGINAL_HASH@@ && $(stat -c '%u:%g:%a' "$HOOK") == $(stat -c '%u:%g:%a' "$ROOT/original") ]] || fail 'Restore readback failed'
@@ -223,6 +226,7 @@ sync
 mv "$TEMP" "$ROOT"
 TEMP=$(mktemp -d /opt/etc/.samshush-install.XXXXXXXX)
 cp --preserve=all "$ROOT/wrapper" "$TEMP/parseinfo.sh"
+chsmack -T "$TEMP/parseinfo.sh"
 mv -f "$TEMP/parseinfo.sh" "$HOOK"
 verify
 touch "$ROOT/installed"
